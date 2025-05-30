@@ -5,6 +5,18 @@ __pycache__/
 
 # C extensions
 *.so
+*.ipynb
+*.swp
+*.png
+*.json
+*.csv
+*.xlsx
+*.env
+*.envr
+
+data/
+tmp/
+temp/
 
 # Distribution / packaging
 .Python

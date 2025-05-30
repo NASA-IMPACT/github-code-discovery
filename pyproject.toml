@@ -5,4 +5,51 @@ description = "Pipeline for discoverying code in GitHub for NASA science"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "joblib>=1.5.1",
+    "loguru>=0.7.3",
+    "numpy>=2.2.6",
+    "pydantic>=2.11.5",
+    "requests>=2.32.3",
+    "sentence-transformers>=4.1.0",
+    "types-requests>=2.32.0.20250515",
+]
+
+[tool.ruff]
+line-length = 86
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # Pyflakes
+    "I",  # isort
+    "C90", # mccabe complexity (uncommented to catch complex functions)
+    "N",  # pep8-naming
+    "UP", # pyupgrade
+    "Q",  # flake8-quotes (for string quote consistency)
+]
+# Remove E501 from ignore since you want to enforce line length
+ignore = ["C901", "E501"]
+
+[tool.ruff.format]
+quote-style = "double" # Match double-quote-string-fixer
+
+[tool.ruff.lint.isort]
+# Add any specific isort configurations if needed, e.g.:
+# known-first-party = ["gcd"]
+
+[tool.ruff.lint.mccabe]
+# Set complexity threshold (default is 10, you can adjust)
+max-complexity = 10
+
+[tool.mypy]
+ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+module = [
+    "pymupdf",
+    "joblib", 
+    "cloudscraper",
+    "semanticscholar",
+    "dotenv"
 ]
