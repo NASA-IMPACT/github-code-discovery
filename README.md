@@ -40,6 +40,13 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 python3 doi2links.py ./data/extracted_dois 0 -1
 ```
 
+## Pipeline: GitHub Code Search
+
+For time being, we can search specific repo.
 ```bash
 python scripts/test_search.py "https://github.com/NISH1001/tag-generator" "tfidf" --max-files 5 --max-results 10
 ```
+
+We will improve this to be at 2 levels:
+- First, search for a list of top N repotories
+- Then search for code in each of those repo
