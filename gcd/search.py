@@ -77,9 +77,7 @@ class GitHubCodeSearcher:
 
     def get_file_content(self, owner: str, repo: str, file_path: str) -> str:
         """Fetch file content from GitHub API."""
-        url = (
-            f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
-        )
+        url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
 
         try:
             response = self.session.get(url)
@@ -144,9 +142,7 @@ class GitHubCodeSearcher:
                             arg_str = arg.arg
                             if arg.annotation:
                                 try:
-                                    arg_str += (
-                                        f": {ast.unparse(arg.annotation)}"
-                                    )
+                                    arg_str += f": {ast.unparse(arg.annotation)}"
                                 except:  # noqa
                                     pass
                             args.append(arg_str)
@@ -154,16 +150,12 @@ class GitHubCodeSearcher:
                         return_annotation = ""
                         if node.returns:
                             try:
-                                return_annotation = (
-                                    f" -> {ast.unparse(node.returns)}"
-                                )
+                                return_annotation = f" -> {ast.unparse(node.returns)}"
                             except:  # noqa
                                 pass
 
                         async_prefix = (
-                            "async "
-                            if isinstance(node, ast.AsyncFunctionDef)
-                            else ""
+                            "async " if isinstance(node, ast.AsyncFunctionDef) else ""
                         )
                         signature = f"{async_prefix}def {node.name}({', '.join(args)}){return_annotation}"
                     else:

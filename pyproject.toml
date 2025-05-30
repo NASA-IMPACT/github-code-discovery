@@ -48,7 +48,7 @@ ignore_missing_imports = false
 [[tool.mypy.overrides]]
 module = [
     "pymupdf",
-    "joblib", 
+    "joblib",
     "cloudscraper",
     "semanticscholar",
     "dotenv"

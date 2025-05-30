@@ -41,7 +41,8 @@ def extract_links_from_text(text: str) -> list[str]:
 
 
 def extract_links_from_dataframe(
-    df: pd.DataFrame, all_columns: bool = False
+    df: pd.DataFrame,
+    all_columns: bool = False,
 ) -> list[str]:
     def process_row_all(row):
         links = []
@@ -70,7 +71,8 @@ def process_single_pdf(pdf_path):
 
 
 def extract_links_from_pdf_folder(
-    pdf_folder: str, output_csv: str = "extracted_github_links.csv"
+    pdf_folder: str,
+    output_csv: str = "extracted_github_links.csv",
 ):
     """
     Process all PDFs in a folder, extract GitHub links, and save them to a CSV.

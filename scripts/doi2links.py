@@ -3,12 +3,10 @@ from __future__ import annotations
 import sys
 
 from config import GITHUB_TOKEN
+
 from utils.extract_links import extract_links_from_pdf_folder
 from utils.github_api_ql import process_github_links_from_csv
-from utils.pdf_scraper import (
-    download_all_pdfs_from_csvs,
-    process_dois_parallel,
-)
+from utils.pdf_scraper import download_all_pdfs_from_csvs, process_dois_parallel
 
 
 def main(csv_path: str, start_row: int = 0, end_row: int = 1000):
@@ -28,7 +26,7 @@ def main(csv_path: str, start_row: int = 0, end_row: int = 1000):
 if __name__ == "__main__":
     if len(sys.argv) != 4:
         print(
-            "Usage: python3 doi2links.py ./data/[doilinks.csv] [start_row] [end_row]"
+            "Usage: python3 doi2links.py ./data/[doilinks.csv] [start_row] [end_row]",
         )
         sys.exit(1)
 

@@ -64,7 +64,8 @@ def process_dois_parallel(
 
     print("\n--- Processing DOIs ---")
     for batch_num, i in enumerate(
-        range(0, len(doi_urls), BATCH_SIZE), start=1
+        range(0, len(doi_urls), BATCH_SIZE),
+        start=1,
     ):
         batch_dois = doi_urls[i : i + BATCH_SIZE]
         results = Parallel(n_jobs=n_jobs, backend="threading")(
@@ -81,14 +82,14 @@ def download_pdf(url, output_path):
 
         if response.status_code != 200:
             print(
-                f"Failed to download PDF. HTTP {response.status_code} for URL: {url}"
+                f"Failed to download PDF. HTTP {response.status_code} for URL: {url}",
             )
             return
 
         content_type = response.headers.get("Content-Type", "")
         if "application/pdf" not in content_type:
             print(
-                f"URL did not return a PDF: {url} (Content-Type: {content_type})"
+                f"URL did not return a PDF: {url} (Content-Type: {content_type})",
             )
             return
 
@@ -103,7 +104,8 @@ def download_pdf(url, output_path):
 
 
 def download_all_pdfs_from_csvs(
-    results_folder="./doi_results/links", pdf_output_path="./doi_results/pdfs"
+    results_folder="./doi_results/links",
+    pdf_output_path="./doi_results/pdfs",
 ):
     """Scan all result CSVs and download PDFs from the FullTextURL column."""
     csv_files = glob.glob(os.path.join(results_folder, "batch_*.csv"))
@@ -118,9 +120,7 @@ def download_all_pdfs_from_csvs(
                 # Generate a unique filename from the URL or DOI
                 try:
                     parsed = urlparse(url)
-                    filename = (
-                        parsed.path.strip("/").replace("/", "_") + ".pdf"
-                    )
+                    filename = parsed.path.strip("/").replace("/", "_") + ".pdf"
                     output_file = os.path.join(pdf_output_path, filename)
                     if not os.path.exists(output_file):  # Avoid re-downloading
                         download_pdf(url, output_file)

@@ -40,7 +40,7 @@ def get_github_readme(repo_url: str, token: str) -> dict[str, str]:
 
     if not response.ok:
         raise Exception(
-            f"GraphQL query failed: {response.status_code} {response.text}"
+            f"GraphQL query failed: {response.status_code} {response.text}",
         )
 
     data = response.json()

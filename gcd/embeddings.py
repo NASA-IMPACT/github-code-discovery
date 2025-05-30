@@ -106,16 +106,13 @@ class EmbeddingScorer:
         threshold: float = 0.25,
     ) -> float:
         components = [
-            (score, weight)
-            for score, weight in components
-            if score >= threshold
+            (score, weight) for score, weight in components if score >= threshold
         ]
         if not components:
             return 0.0
         total_valid_weight = sum(weight for _, weight in components)
         score = sum(
-            score * (weight / total_valid_weight)
-            for score, weight in components
+            score * (weight / total_valid_weight) for score, weight in components
         )
         return min(1.0, max(0.0, score))
 
