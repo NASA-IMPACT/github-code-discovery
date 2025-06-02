@@ -1,10 +1,9 @@
 from __future__ import annotations
-
 import base64
 from typing import Any
-
 import requests
-
+import time
+from datetime import datetime, timedelta
 
 def get_github_repo_info(
     repo_url: str,
@@ -83,3 +82,77 @@ def get_github_readme(
         )
     content = base64.b64decode(resp.json().get("content", "")).decode("utf-8")
     return {"readme_text": content}
+
+def search_repositories(keyword, days_back=30, per_interval_max=100, GITHUB_TOKEN=None):
+    SEARCH_URL = "https://api.github.com/search/repositories"
+    HEADERS = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+
+    repos = []
+    seen_urls = set()
+    per_page = 100
+
+    today = datetime.utcnow().date()
+    since_date = today - timedelta(days=days_back)
+
+    if days_back >= 5:
+        # Divide into 5 intervals
+        interval_days = days_back // 5
+        intervals = [
+            (since_date + timedelta(days=i * interval_days),
+             since_date + timedelta(days=(i + 1) * interval_days - 1))
+            for i in range(5)
+        ]
+        # Ensure the last interval ends today
+        intervals[-1] = (intervals[-1][0], today)
+    else:
+        intervals = [(since_date, today)]
+
+    for start_date, end_date in intervals:
+        created_filter = f"{start_date.isoformat()}..{end_date.isoformat()}"
+        print(f"Fetching: {created_filter}")
+        total_pages = per_interval_max // per_page
+
+        for page in range(1, total_pages + 1):
+            params = {
+                "q": f"{keyword} created:{created_filter}",
+                "per_page": per_page,
+                "page": page,
+                "sort": "stars",
+                "order": "desc"
+            }
+
+            response = requests.get(SEARCH_URL, headers=HEADERS, params=params)
+            if response.status_code != 200:
+                print(f"Failed for {created_filter}, page {page}: {response.status_code}, {response.text}")
+                break
+
+            items = response.json().get("items", [])
+            if not items:
+                break
+
+            for item in items:
+                url = item["html_url"]
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    try:
+                        readme_dict = get_github_readme(item["html_url"], GITHUB_TOKEN)
+                        readme = readme_dict.get("readme_text", "")
+                    except Exception as e:
+                        print(f"Error fetching README for {item['html_url']}: {e}")
+                        readme = ""
+                    repos.append({
+                        "name": item["full_name"],
+                        "url": url,
+                        "description": item["description"],
+                        "readme": readme,
+                        "stars": item["stargazers_count"],
+                        "language": item["language"],
+                        "created_at": item["created_at"]
+                    })
+
+            time.sleep(1)
+
+    return repos
