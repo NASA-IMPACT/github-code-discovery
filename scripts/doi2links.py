@@ -1,9 +1,9 @@
 import sys
 import pandas as pd
-from utils.pdf_scraper import process_dois_parallel, download_all_pdfs_from_csvs
-from utils.extract_links import extract_links_from_pdf_folder
-from utils.github_api_ql import process_github_links_from_csv
-from utils.classification_utils import run_classification_pipeline
+from gcd.pdf_scraper import process_dois_parallel, download_all_pdfs_from_csvs
+from gcd.extract_links import extract_links_from_pdf_folder
+from gcd.github_api_ql import process_github_links_from_csv
+from gcd.classification_utils import run_classification_pipeline
 from config import GITHUB_TOKEN
 
 def main(csv_path: str, start_row: int = 0, end_row: int = 1000):
