@@ -38,6 +38,11 @@ class Embedder:
         # Use the model's method to get embedding dimensions
         return self.model.get_sentence_embedding_dimension()
 
+    @property
+    def embedding_dimensions(self) -> int:
+        """Get the dimensions of the embeddings."""
+        return self.get_embedding_dimensions()
+
     def compute_similarity(self, query: str, text: str) -> float:
         """Compute similarity between query and text."""
         raise NotImplementedError("Subclasses must implement this method.")

@@ -19,7 +19,7 @@ class GitHubCodeSearcher:
         scorer: CodeElementScorer | None = None,
         debug: bool = False,
         max_files: int = 100,
-        max_results: int = 25,
+        max_results: int = 50,
     ):
         self.github_token = os.getenv("GITHUB_ACCESS_TOKEN", github_token)
         assert self.github_token, "GitHub token must be provided"
@@ -77,7 +77,7 @@ class GitHubCodeSearcher:
 
     def get_file_content(self, owner: str, repo: str, file_path: str) -> str:
         """Fetch file content from GitHub API."""
-        url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+        url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"  # noqa
 
         try:
             response = self.session.get(url)
@@ -142,7 +142,7 @@ class GitHubCodeSearcher:
                             arg_str = arg.arg
                             if arg.annotation:
                                 try:
-                                    arg_str += f": {ast.unparse(arg.annotation)}"
+                                    arg_str += f": {ast.unparse(arg.annotation)}"  # noqa
                                 except:  # noqa
                                     pass
                             args.append(arg_str)
@@ -150,14 +150,14 @@ class GitHubCodeSearcher:
                         return_annotation = ""
                         if node.returns:
                             try:
-                                return_annotation = f" -> {ast.unparse(node.returns)}"
+                                return_annotation = f" -> {ast.unparse(node.returns)}"  # noqa
                             except:  # noqa
                                 pass
 
                         async_prefix = (
-                            "async " if isinstance(node, ast.AsyncFunctionDef) else ""
+                            "async " if isinstance(node, ast.AsyncFunctionDef) else ""  # noqa
                         )
-                        signature = f"{async_prefix}def {node.name}({', '.join(args)}){return_annotation}"
+                        signature = f"{async_prefix}def {node.name}({', '.join(args)}){return_annotation}"  # noqa
                     else:
                         # Handle class inheritance
                         bases = []
@@ -187,7 +187,7 @@ class GitHubCodeSearcher:
                         )
                         actual_end = end_line
 
-                        # Scan forward to find the actual end of the function/class
+                        # Scan forward to find the actual end of the function/class # noqa
                         for i in range(end_line, len(code_lines)):
                             line = code_lines[i]
                             if line.strip():  # Non-empty line
@@ -261,8 +261,8 @@ class GitHubCodeSearcher:
         self,
         repo_url: str,
         query: str,
+        top_k: int = 25,
         max_files: int = 50,
-        max_results: int = 20,
         weights: dict[str, float] | None = None,
     ) -> list[CodeElement]:
         """Search for code elements matching the query."""
@@ -270,7 +270,7 @@ class GitHubCodeSearcher:
         if not query:
             logger.warning("Empty search query provided")
             return []
-        max_results = min(max_results, self.max_results)
+        top_k = min(top_k, self.max_results)
         owner, repo = self.parse_github_url(repo_url)
 
         logger.info(f"Searching in {owner}/{repo} for: {query}")
@@ -307,7 +307,7 @@ class GitHubCodeSearcher:
 
         # Sort by score and return top results
         all_elements.sort(key=lambda x: x.score, reverse=True)
-        return all_elements[:max_results]
+        return all_elements[:top_k]
 
     def print_results(
         self,

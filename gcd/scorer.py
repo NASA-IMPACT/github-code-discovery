@@ -81,7 +81,7 @@ class CodeElementScorer(ABC):
             if query_norm == 0 or text_norm == 0:
                 return 0.0
 
-            similarity = np.dot(query_emb, text_emb) / (query_norm * text_norm)
+            similarity = float(np.dot(query_emb, text_emb) / (query_norm * text_norm))  # noqa
 
             # Convert to 0-1 range (cosine similarity is -1 to 1)
             return max(0.0, (similarity + 1.0) / 2.0)
@@ -199,7 +199,9 @@ class WeightedAverageSelectiveScorer(CodeElementScorer):
         """Compute final score using weighted average of components above threshold."""  # noqa
         # Filter components above threshold
         filtered_components = [
-            (score, weight) for score, weight in components if score >= self.threshold
+            (score, weight)
+            for score, weight in components
+            if score >= self.threshold  # noqa
         ]
 
         if not filtered_components:
