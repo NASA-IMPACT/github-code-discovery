@@ -24,7 +24,7 @@ pre-commit install
 
 
 
-## Pipeline 1 - doi2links
+## Pipeline: DOI Links
 
 A pipeline to extract GitHub repository links from scientific papers using DOI links.
 
@@ -33,11 +33,28 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 - Downloads full-text PDFs (if available)
 - Extracts GitHub links from PDFs using regex-based heuristics
 - Fetches README content from GitHub repos via GraphQL
+- Runs a downstream Relevancy classification pipeline on the retrieved repositories 
 
 ### Usage
 
 ```bash
 python3 doi2links.py ./data/extracted_dois 0 -1
+```
+
+## Pipeline: Keyword Search
+
+A pipeline to discover and classify GitHub repositories using keyword-based search over the GitHub API.
+
+### Features
+- Searches GitHub repositories using a provided keyword and time range (in days)
+- Automatically splits queries into 5 time intervals to bypass the 1000-results-per-query API limitation
+- Fetches repository links and README content using GitHub's REST API
+- Runs a downstream Relevancy classification pipeline on the retrieved repositories 
+
+### Usage
+
+```bash
+python3 kw_search.py "<keyword>" <days_back> <output_csv_path>
 ```
 
 ## Pipeline: GitHub Code Search
