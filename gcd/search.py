@@ -8,15 +8,15 @@ from urllib.parse import urlparse
 import requests
 from loguru import logger
 
-from gcd.embeddings import EmbeddingScorer
 from gcd.schema import CodeElement
+from gcd.scorer import CodeElementScorer
 
 
 class GitHubCodeSearcher:
     def __init__(
         self,
         github_token: str | None = None,
-        scorer: EmbeddingScorer | None = None,
+        scorer: CodeElementScorer | None = None,
         debug: bool = False,
         max_files: int = 100,
         max_results: int = 25,
