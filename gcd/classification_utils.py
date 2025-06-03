@@ -214,7 +214,7 @@ async def classify_all_readmes(agent_instance, texts, urls):
     results = await asyncio.gather(*tasks)
     return results
 
-def run_classification_pipeline(input_csv_path: str, output_csv_path: str):
+def run_classification_pipeline(input_csv_path: str, output_csv_path: str, text_column: str = "readme_text", url_column: str = "repo_url"):
     """
     Run the README classification pipeline.
 
@@ -225,9 +225,9 @@ def run_classification_pipeline(input_csv_path: str, output_csv_path: str):
     print(f"Running Relevancy Classifier Pipeline")
     # Load dataset
     positive_df = pd.read_csv(input_csv_path)
-    positive_df['readme_text'] = positive_df['readme_text'].fillna("")
-    positive_texts = [flatten(text) for text in positive_df['readme_text'].values]
-    positive_repo_urls = list(positive_df['repo_url'].values)
+    positive_df[text_column] = positive_df[text_column].fillna("")
+    positive_texts = [flatten(text) for text in positive_df[text_column].values]
+    positive_repo_urls = list(positive_df[url_column].values)
 
     # Run classification
     processed_data = asyncio.run(classify_all_readmes(readme_agent, positive_texts, positive_repo_urls))
