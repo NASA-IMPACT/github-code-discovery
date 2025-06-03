@@ -57,6 +57,22 @@ A pipeline to discover and classify GitHub repositories using keyword-based sear
 python3 kw_search.py "<keyword>" <days_back> <output_csv_path>
 ```
 
+## Pipeline: ASCL Search
+
+A pipeline to extract and classify GitHub repository links from the Astrophysics Source Code Library (ASCL) JSON index.
+
+### Features
+- Fetches the latest metadata from the ASCL API (`https://ascl.net/code/json`)
+- Extracts and filters new GitHub repository links not already present in the local dataset
+- Retrieves README content for newly found repositories using GitHub's GraphQL API
+- Runs a downstream Relevancy classification pipeline on the retrieved repositories 
+
+### Usage
+
+```bash
+python3 ascl_search.py
+```
+
 ## Pipeline: GitHub Code Search
 
 For time being, we can search specific repo.
