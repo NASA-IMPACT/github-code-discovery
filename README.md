@@ -38,7 +38,10 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 ### Usage
 
 ```bash
-python3 doi2links.py ./data/extracted_dois 0 -1
+python gh_search.py dois <doi_csv_file> <start_row> <end_row>
+
+Example:
+python gh_search.py dois ./data/extracted_dois.csv 0 -1
 ```
 
 ## Pipeline: Keyword Search
@@ -54,7 +57,10 @@ A pipeline to discover and classify GitHub repositories using keyword-based sear
 ### Usage
 
 ```bash
-python3 kw_search.py "<keyword>" <days_back> <output_csv_path>
+python gh_search.py keywords "<search_keyword>" <days_back> <output_csv_path>
+
+Example:
+python gh_search.py keywords "NASA" 90 ./results/kw_output.csv
 ```
 
 ## Pipeline: ASCL Search
@@ -70,7 +76,7 @@ A pipeline to extract and classify GitHub repository links from the Astrophysics
 ### Usage
 
 ```bash
-python3 ascl_search.py
+python gh_search.py ascl
 ```
 
 ## Pipeline: GitHub Code Search
