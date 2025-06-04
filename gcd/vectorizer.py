@@ -10,8 +10,8 @@ from scipy.spatial.distance import cdist
 from gcd.embeddings import Embedder
 
 
-class Vectorizer:
-    """Vectorizer for generating and caching embeddings with similarity search."""  # noqa
+class RepoFinder:
+    """RepoFinder for generating and caching embeddings with similarity search."""  # noqa
 
     def __init__(
         self,
@@ -19,11 +19,12 @@ class Vectorizer:
         data: pd.DataFrame | None = None,
         text_column: str = "text",
         embeddings_column: str = "embeddings",
+        area_column: str = "area",
         parse_embeddings_from_string: bool = True,
         debug: bool = False,
     ) -> None:
         """
-        Initialize Vectorizer.
+        Initialize RepoFinder.
 
         Args:
             embedder: EmbeddingScorer instance
@@ -36,6 +37,7 @@ class Vectorizer:
         self.embedder = embedder
         self.text_column = text_column
         self.embeddings_column = embeddings_column
+        self.area_column = area_column.strip()
         self.debug = bool(debug)
         self.data = None
 
@@ -59,8 +61,10 @@ class Vectorizer:
         assert self.text_column in data.columns, (
             f"Text column '{self.text_column}' not found"
         )
-
-        self.data = data.copy()
+        data = data.copy()
+        self.data = data[data[self.area_column] != "Not a NASA Division"].reset_index(
+            drop=True
+        )  # noqa
 
         # Parse embeddings if they exist and are in string format
         if (
@@ -99,9 +103,9 @@ class Vectorizer:
         embeddings_column: str = "embeddings",
         parse_embeddings_from_string: bool = True,
         debug: bool = False,
-    ) -> Vectorizer:
+    ) -> RepoFinder:
         """
-        Create Vectorizer instance from CSV file.
+        Create RepoFinder instance from CSV file.
 
         Args:
             filepath: Path to CSV file
@@ -207,7 +211,7 @@ class Vectorizer:
         save_data.to_csv(filepath, index=False)
         logger.info(f"Data saved to {filepath}")
 
-    def similarity_search(
+    def find_repo(
         self,
         query: str,
         top_k: int = 25,

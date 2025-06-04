@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -16,6 +17,7 @@ from loguru import logger
 
 from gcd.schema import CodeElement
 from gcd.scorer import CodeElementScorer
+from gcd.vectorizer import RepoFinder
 
 
 class BaseGithubCodeSearcher(ABC):
@@ -44,6 +46,22 @@ class BaseGithubCodeSearcher(ABC):
             "Authorization": f"token {self.github_token}",
             "Accept": "application/vnd.github.v3+json",
         }
+
+    def search_code(
+        self,
+        repo_url: str,
+        query: str,
+        top_k: int = 25,
+        max_files: int | None = 50,
+        weights: dict[str, float] | None = None,
+    ) -> list[CodeElement]:
+        return self.search_code_elements(
+            repo_url=repo_url,
+            query=query,
+            top_k=top_k,
+            max_files=max_files,
+            weights=weights,
+        )
 
     def get_file_content(self, owner: str, repo: str, file_path: str | Path) -> str:
         """Fetch file content from GitHub API."""
@@ -76,7 +94,7 @@ class BaseGithubCodeSearcher(ABC):
                 repo_data = response.json()
                 if self.debug:
                     logger.info(
-                        f"Repository {owner}/{repo} is accessible. Size: {repo_data.get('size', 0)} KB"
+                        f"Repository {owner}/{repo} is accessible. Size: {repo_data.get('size', 0)} KB",
                     )
                 return True
             elif response.status_code == 404:
@@ -95,7 +113,7 @@ class BaseGithubCodeSearcher(ABC):
         owner: str,
         repo: str,
         query: str = "",
-        max_files: int = 50,
+        max_files: int | None = 50,
     ) -> list[dict]:
         """Search for Python files in the repository using GitHub API."""
         raise NotImplementedError()
@@ -408,14 +426,17 @@ class DefaultGitHubCodeSearcher(BaseGithubCodeSearcher):
             "sort": "indexed",
         }
 
+        max_files = min(max_files, 100)
+        results = []
         try:
             response = self.session.get(url, params=params)
             response.raise_for_status()
             data = response.json()
-            return data.get("items", [])
+            results = data.get("items", [])
         except requests.exceptions.RequestException as e:
             logger.error(f"Error searching files: {e}")
-            return []
+            results = []
+        return results[:max_files]
 
 
 class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
@@ -499,10 +520,10 @@ class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
             if self.debug:
                 logger.info(f"Response status: {response.status_code}")
                 logger.info(
-                    f"Rate limit remaining: {response.headers.get('X-RateLimit-Remaining', 'unknown')}"
+                    f"Rate limit remaining: {response.headers.get('X-RateLimit-Remaining', 'unknown')}",
                 )
                 logger.info(
-                    f"Rate limit reset: {response.headers.get('X-RateLimit-Reset', 'unknown')}"
+                    f"Rate limit reset: {response.headers.get('X-RateLimit-Reset', 'unknown')}",
                 )
 
             # Handle rate limiting specifically
@@ -515,7 +536,7 @@ class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
                     current_time = int(time.time())
                     wait_time = max(0, reset_time - current_time + 1)
                     logger.warning(
-                        f"Rate limit exceeded. Waiting {wait_time} seconds..."
+                        f"Rate limit exceeded. Waiting {wait_time} seconds...",
                     )
                     time.sleep(wait_time)
                     return []
@@ -540,7 +561,7 @@ class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
 
             if self.debug:
                 logger.info(
-                    f"Found {len(items)} files (total available: {total_count})"
+                    f"Found {len(items)} files (total available: {total_count})",
                 )
                 if items:
                     logger.info(f"Sample file: {items[0].get('path', 'unknown')}")
@@ -588,7 +609,7 @@ class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
                 or query_lower in file.get("name", "").lower()
             ):
                 filtered_results.append(file)
-        return filtered_results or results
+        return (filtered_results or results)[:max_files]
 
     def _fallback_2(
         self,
@@ -615,11 +636,11 @@ class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
                                 "path": item["path"],
                                 "url": item.get("html_url", ""),
                                 "sha": item.get("sha", ""),
-                            }
+                            },
                         )
         except Exception as e:
             logger.error(f"Contents API fallback failed: {e}")
-        return results
+        return results[:max_files]
 
     def search_python_files(
         self,
@@ -632,12 +653,13 @@ class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
         query = query.strip()
         results = []
 
+        max_files = max_files or self.max_files
         # waterfall
         for _fn in [self._search_python_files, self._fallback_1, self._fallback_2]:
             results = _fn(owner, repo, query, max_files)
             if self.debug:
                 logger.debug(
-                    f"Results from {_fn.__name__}: {len(results)} files found"
+                    f"Results from {_fn.__name__}: {len(results)} files found",
                 )
             if results:
                 break
@@ -656,7 +678,7 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         debug: bool = False,
         max_files: int = 1000,
         max_results: int = 50,
-        use_local_clone: bool = True,
+        cache_dir: str | None = None,
         clone_timeout: int = 300,
     ):
         super().__init__(
@@ -666,7 +688,7 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
             max_results=max_results,
             debug=debug,
         )
-        self.use_local_clone = use_local_clone
+        self.cache_dir = cache_dir
         self.clone_timeout = clone_timeout
         self._clone_cache = {}
 
@@ -681,7 +703,10 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
             return f"git@github.com:{owner}/{repo}.git"
 
     def clone_repository(
-        self, repo_url: str, target_dir: str, shallow: bool = True
+        self,
+        repo_url: str,
+        target_dir: str,
+        shallow: bool = True,
     ) -> bool:
         """Clone repository to target directory with timeout."""
         owner, repo = self.parse_github_url(repo_url)
@@ -696,15 +721,12 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         logger.info(f"Cloning {owner}/{repo} to {target_dir}")
 
         try:
-            # Use subprocess with timeout
+            # Use subprocess with timeout - don't set cwd to avoid directory nesting issues
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=self.clone_timeout,
-                cwd=os.path.dirname(target_dir)
-                if os.path.dirname(target_dir)
-                else None,
             )
 
             if result.returncode == 0:
@@ -725,7 +747,7 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
                         capture_output=True,
                         text=True,
                         timeout=self.clone_timeout,
-                    )  # noqa
+                    )
                     if result.returncode == 0:
                         logger.info(f"Successfully cloned {owner}/{repo} (public)")
                         return True
@@ -742,7 +764,10 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
             return False
 
     def search_python_files(
-        self, repo_path: str | Path, query: str = ""
+        self,
+        repo_path: str | Path,
+        query: str = "",
+        max_files: int | None = None,
     ) -> list[str]:
         """Find Python files in the cloned repository."""
         python_files = []
@@ -806,10 +831,14 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
             )
 
         logger.info(f"Found {len(python_files)} Python files")
-        return python_files[: self.max_files]
+        max_files = max_files or self.max_files
+        return python_files[:max_files]
 
     def get_file_content(
-        self, owner: str | None, repo: str | None, file_path: str | Path
+        self,
+        owner: str | None,
+        repo: str | None,
+        file_path: str | Path,
     ) -> str:
         """Read file content with encoding detection."""
         file_path = Path(file_path)
@@ -826,17 +855,19 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
 
     def _search_code_elements_local(
         self,
-        repo_path: str,
+        repo_path: str | Path,
         query: str,
         top_k: int = 25,
+        max_files: int | None = None,
         weights: dict[str, float] | None = None,
     ) -> list[CodeElement]:
         """Search for code elements in a local repository."""
         repo_path = Path(repo_path)
         all_elements = []
 
+        max_files = max_files or self.max_files
         # Find Python files
-        python_files = self.search_python_files(repo_path, query)
+        python_files = self.search_python_files(repo_path, query, max_files=max_files)
 
         if not python_files:
             logger.warning("No Python files found in repository")
@@ -875,6 +906,78 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         logger.info(f"Found {len(all_elements)} matching code elements")
         return all_elements[:top_k]
 
+    # def search_code_elements(
+    #     self,
+    #     repo_url: str,
+    #     query: str,
+    #     top_k: int = 25,
+    #     max_files: int = 50,
+    #     weights: dict[str, float] | None = None,
+    # ) -> list[CodeElement]:
+    #     """Search for code elements matching the query."""
+    #     query = query.strip()
+    #     if not query:
+    #         logger.warning("Empty search query provided")
+    #         return []
+
+    #     top_k = min(top_k, self.max_results)
+    #     owner, repo = self.parse_github_url(repo_url)
+    #     repo_key = f"{owner}/{repo}"
+
+    #     if self.debug:
+    #         logger.debug(f"Clone cache : {self._clone_cache}")
+
+    #     # Check if we already have this repo cloned
+    #     if repo_key in self._clone_cache:
+    #         clone_dir = self._clone_cache[repo_key]
+    #         if os.path.exists(clone_dir):
+    #             logger.info(f"Using cached clone at {clone_dir}")
+    #             return self._search_code_elements_local(
+    #                 clone_dir, query, top_k, max_files, weights,
+    #             )
+
+    #     # Create temporary directory for clone
+    #     with tempfile.TemporaryDirectory(
+    #         prefix=f"github_search_{owner}_{repo}_",
+    #         dir=self.cache_dir,
+    #         delete=False,
+    #     ) as temp_dir:
+    #         clone_path = os.path.join(temp_dir, repo)
+
+    #         # Clone repository
+    #         if not self.clone_repository(repo_url, clone_path):
+    #             logger.error("Failed to clone repository!")
+
+    #         # Cache the clone path for this session
+    #         self._clone_cache[repo_key] = clone_path
+
+    #         # Search in local repository
+    #         return self._search_code_elements_local(clone_path, query, top_k, max_files, weights)
+
+    @contextmanager
+    def _get_clone_directory(
+        self, owner: str, repo: str, cache_dir: str | None = None
+    ):
+        """Context manager for getting a clone directory - uses cache_dir if available, temp otherwise."""
+        if cache_dir:
+            # Use cache directory - persistent storage
+            cache_path = Path(cache_dir)
+            # Create the cache directory if it doesn't exist
+            cache_path.mkdir(parents=True, exist_ok=True)
+
+            try:
+                yield str(cache_path)
+            except Exception:
+                # Don't cleanup cache directory on error - might be useful for debugging
+                raise
+        else:
+            # Use temporary directory - auto cleanup
+            with tempfile.TemporaryDirectory(
+                prefix=f"github_search_{owner}_{repo}_",
+                delete=True,
+            ) as temp_dir:
+                yield temp_dir
+
     def search_code_elements(
         self,
         repo_url: str,
@@ -882,7 +985,6 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         top_k: int = 25,
         max_files: int = 50,
         weights: dict[str, float] | None = None,
-        force_api: bool = False,
     ) -> list[CodeElement]:
         """Search for code elements matching the query."""
         query = query.strip()
@@ -894,30 +996,48 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         owner, repo = self.parse_github_url(repo_url)
         repo_key = f"{owner}/{repo}"
 
+        if self.debug:
+            logger.debug(f"Clone cache : {self._clone_cache}")
+
         # Check if we already have this repo cloned
         if repo_key in self._clone_cache:
             clone_dir = self._clone_cache[repo_key]
             if os.path.exists(clone_dir):
                 logger.info(f"Using cached clone at {clone_dir}")
                 return self._search_code_elements_local(
-                    clone_dir, query, top_k, weights
+                    clone_dir,
+                    query,
+                    top_k,
+                    max_files,
+                    weights,
                 )
 
-        # Create temporary directory for clone
-        with tempfile.TemporaryDirectory(
-            prefix=f"github_search_{owner}_{repo}_"
-        ) as temp_dir:
-            clone_path = os.path.join(temp_dir, repo)
+        # Use context manager for directory handling
+        with self._get_clone_directory(owner, repo, self.cache_dir) as clone_base:
+            # Create the full path where we want the repo to be cloned
+            clone_path = Path(clone_base) / f"{owner}_{repo}"
 
-            # Clone repository
-            if not self.clone_repository(repo_url, clone_path):
+            # Ensure parent directory exists
+            clone_path.parent.mkdir(parents=True, exist_ok=True)
+
+            logger.debug(f"Cloning to: {clone_path}")
+
+            # Clone repository directly to the target path
+            if not self.clone_repository(repo_url, str(clone_path)):
                 logger.error("Failed to clone repository!")
+                return []
 
             # Cache the clone path for this session
-            self._clone_cache[repo_key] = clone_path
+            self._clone_cache[repo_key] = str(clone_path)
 
             # Search in local repository
-            return self._search_code_elements_local(clone_path, query, top_k, weights)
+            return self._search_code_elements_local(
+                str(clone_path),
+                query,
+                top_k,
+                max_files,
+                weights,
+            )
 
     def cleanup_cache(self):
         """Cleanup cloned repositories."""
@@ -933,3 +1053,95 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
     def __del__(self):
         """Cleanup on destruction."""
         self.cleanup_cache()
+
+
+class MultiRepoCodeSearcher:
+    def __init__(
+        self,
+        repo_finder: RepoFinder,
+        searcher: BaseGithubCodeSearcher,
+        scorer: CodeElementScorer,
+        debug: bool = False,
+    ) -> None:
+        self.repo_finder = repo_finder
+        self.searcher = searcher
+        self.scorer = scorer
+        self.debug = bool(debug)
+
+    def search_code(
+        self,
+        query: str,
+        top_k: int = 25,
+        top_r: int = 10,
+        top_cr: int = 25,
+        top_fr: int | None = None,
+        weights: dict[str, float] | None = None,
+    ) -> list[CodeElement]:
+        """
+        Search for code elements in multiple repositories.
+        Args:
+            query: Search query
+            top_k: Number of top code elements to return
+            top_r: Number of top repositories to search
+            top_cr: Number of top code elements per repository
+            top_fr: Number of files to use per repository (optional)
+            weights: Optional weights for scoring elements
+        Returns:
+            List of top code elements matching the query
+        """
+        query = query.strip()
+        if not query:
+            return []
+        repositories = self.repo_finder.find_repo(
+            query=query,
+            top_k=top_r,
+        )
+        if self.debug:
+            logger.debug(f"Found {len(repositories)} repositories")
+
+        # Step 2: For each repo, get top_cr code elements
+        all_code_elements = []
+        for repo in repositories:
+            # Assuming repo has a url attribute or is a string URL
+            repo_url = repo.get("URL") or repo.get("url")
+            if not repo_url:
+                continue
+            try:
+                code_elements = self.searcher.search_code(
+                    repo_url=repo_url,
+                    query=query,
+                    top_k=top_cr,
+                    max_files=top_fr,
+                    weights=weights,
+                )
+
+                if self.debug:
+                    logger.debug(
+                        f"Found {len(code_elements)} code elements in {repo_url}",
+                    )
+
+                all_code_elements.extend(code_elements)
+
+            except Exception as e:
+                if self.debug:
+                    logger.error(f"Error searching in {repo_url}: {e}")
+                continue
+
+        if self.debug:
+            logger.debug(
+                f"Total code elements before reranking: {len(all_code_elements)}",
+            )
+
+        # Step 3: Aggregate and rerank using CodeElementScorer
+        if not all_code_elements:
+            return []
+
+        # Rerank all collected code elements
+        reranked_elements = self.scorer.score_elements(
+            elements=all_code_elements,
+            query=query,
+            weights=weights,
+        )
+
+        # Step 4: Return top_k results
+        return reranked_elements[:top_k]
