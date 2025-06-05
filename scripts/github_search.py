@@ -4,12 +4,12 @@ import argparse
 import os
 import sys
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from loguru import logger
 
 from gcd.embeddings import EmbeddingScorer
 from gcd.search import GitHubCodeSearcher
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main():
