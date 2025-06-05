@@ -44,7 +44,7 @@ class GitHandler:
         # Check if cache directory exists
         if not cache_path.exists():
             logger.info(
-                f"Cache directory {cache_path} does not exist, will be created when needed"
+                f"Cache directory {cache_path} does not exist, will be created when needed",
             )
             return
 
@@ -73,7 +73,7 @@ class GitHandler:
                 # We'll assume the first underscore separates owner from repo
                 if "_" not in dir_name:
                     logger.debug(
-                        f"Skipping {dir_name} - doesn't match expected pattern 'owner_repo'"
+                        f"Skipping {dir_name} - doesn't match expected pattern 'owner_repo'",
                     )
                     continue
 
@@ -278,7 +278,7 @@ class GitHandler:
                 # Remove directory if it exists but is not a valid git repo
                 if clone_path.exists():
                     logger.info(
-                        f"Removing invalid/incomplete directory at {clone_path}"
+                        f"Removing invalid/incomplete directory at {clone_path}",
                     )
                     try:
                         shutil.rmtree(clone_path)
