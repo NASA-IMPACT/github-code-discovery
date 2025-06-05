@@ -14,6 +14,7 @@ class CodeElement(BaseModel):
     signature: str = ""
     code: str = ""
     score: float = 0.0
+    repository: str = ""
 
     @field_validator("score")
     @classmethod

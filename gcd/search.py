@@ -3,12 +3,8 @@ from __future__ import annotations
 import ast
 import json
 import os
-import shutil
-import subprocess
-import tempfile
 import time
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -17,6 +13,7 @@ from loguru import logger
 
 from gcd.schema import CodeElement
 from gcd.scorer import CodeElementScorer
+from gcd.utils import GitHandler
 from gcd.vectorizer import RepoFinder
 
 
@@ -312,6 +309,7 @@ class BaseGithubCodeSearcher(ABC):
 
         all_elements = []
 
+        repo = f"{owner}/{repo}"  # Use owner/repo format for repository name
         for i, file_info in enumerate(files):
             file_path = file_info["path"]
             logger.info(f"Analyzing [{i + 1}/{len(files)}]: {file_path}")
@@ -326,6 +324,7 @@ class BaseGithubCodeSearcher(ABC):
 
             # Score elements based on query
             for element in elements:
+                element.repository = repo
                 element.score = self.score_element(element, query)
                 if self.scorer:
                     element.score = self.scorer.score_element(
@@ -669,6 +668,7 @@ class RateLimitedGitHubCodeSearcher(BaseGithubCodeSearcher):
 class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
     """
     A code searcher that clones repositories locally and searches them.
+    Uses GitHandler for all git-related operations.
     """
 
     def __init__(
@@ -680,6 +680,7 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         max_results: int = 50,
         cache_dir: str | None = None,
         clone_timeout: int = 300,
+        git_handler: GitHandler | None = None,  # Dependency injection
     ):
         super().__init__(
             github_token=github_token,
@@ -688,80 +689,17 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
             max_results=max_results,
             debug=debug,
         )
-        self.cache_dir = cache_dir
-        self.clone_timeout = clone_timeout
-        self._clone_cache = {}
 
-    def get_clone_url(self, owner: str, repo: str, use_https: bool = True) -> str:
-        """Get the appropriate clone URL."""
-        if use_https:
-            if self.github_token:
-                return f"https://{self.github_token}@github.com/{owner}/{repo}.git"
-            else:
-                return f"https://github.com/{owner}/{repo}.git"
+        # Use injected GitHandler or create a new one
+        if git_handler is not None:
+            self.git_handler = git_handler
         else:
-            return f"git@github.com:{owner}/{repo}.git"
-
-    def clone_repository(
-        self,
-        repo_url: str,
-        target_dir: str,
-        shallow: bool = True,
-    ) -> bool:
-        """Clone repository to target directory with timeout."""
-        owner, repo = self.parse_github_url(repo_url)
-        clone_url = self.get_clone_url(owner, repo)
-
-        # Build git clone command
-        cmd = ["git", "clone"]
-        if shallow:
-            cmd.extend(["--depth", "1"])  # Shallow clone for speed
-        cmd.extend([clone_url, target_dir])
-
-        logger.info(f"Cloning {owner}/{repo} to {target_dir}")
-
-        try:
-            # Use subprocess with timeout - don't set cwd to avoid directory nesting issues
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=self.clone_timeout,
+            self.git_handler = GitHandler(
+                github_token=github_token,
+                cache_dir=cache_dir,
+                clone_timeout=clone_timeout,
+                debug=debug,
             )
-
-            if result.returncode == 0:
-                logger.info(f"Successfully cloned {owner}/{repo}")
-                return True
-            else:
-                logger.error(f"Git clone failed: {result.stderr}")
-                # Try without token (for public repos)
-                if (
-                    self.github_token
-                    and "authentication failed" in result.stderr.lower()
-                ):
-                    logger.info("Retrying without token for public repo")
-                    public_url = f"https://github.com/{owner}/{repo}.git"
-                    cmd[-2] = public_url
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=self.clone_timeout,
-                    )
-                    if result.returncode == 0:
-                        logger.info(f"Successfully cloned {owner}/{repo} (public)")
-                        return True
-                return False
-
-        except subprocess.TimeoutExpired:
-            logger.error(f"Clone timeout after {self.clone_timeout} seconds")
-            return False
-        except FileNotFoundError:
-            logger.error("Git not found. Please install git.")
-            return False
-        except Exception as e:
-            logger.error(f"Clone error: {e}")
-            return False
 
     def search_python_files(
         self,
@@ -875,6 +813,7 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
 
         logger.info(f"Analyzing {len(python_files)} Python files")
 
+        repo = "/".join(repo_path.parts[-2:])  # Get repo name from path
         for i, file_path in enumerate(python_files):
             if i % 50 == 0:  # Progress logging
                 logger.info(f"Progress: {i}/{len(python_files)} files processed")
@@ -891,6 +830,7 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
 
             # Score elements
             for element in elements:
+                element.repository = repo
                 element.score = self.score_element(element, query)
                 if self.scorer:
                     element.score = self.scorer.score_element(
@@ -906,78 +846,6 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         logger.info(f"Found {len(all_elements)} matching code elements")
         return all_elements[:top_k]
 
-    # def search_code_elements(
-    #     self,
-    #     repo_url: str,
-    #     query: str,
-    #     top_k: int = 25,
-    #     max_files: int = 50,
-    #     weights: dict[str, float] | None = None,
-    # ) -> list[CodeElement]:
-    #     """Search for code elements matching the query."""
-    #     query = query.strip()
-    #     if not query:
-    #         logger.warning("Empty search query provided")
-    #         return []
-
-    #     top_k = min(top_k, self.max_results)
-    #     owner, repo = self.parse_github_url(repo_url)
-    #     repo_key = f"{owner}/{repo}"
-
-    #     if self.debug:
-    #         logger.debug(f"Clone cache : {self._clone_cache}")
-
-    #     # Check if we already have this repo cloned
-    #     if repo_key in self._clone_cache:
-    #         clone_dir = self._clone_cache[repo_key]
-    #         if os.path.exists(clone_dir):
-    #             logger.info(f"Using cached clone at {clone_dir}")
-    #             return self._search_code_elements_local(
-    #                 clone_dir, query, top_k, max_files, weights,
-    #             )
-
-    #     # Create temporary directory for clone
-    #     with tempfile.TemporaryDirectory(
-    #         prefix=f"github_search_{owner}_{repo}_",
-    #         dir=self.cache_dir,
-    #         delete=False,
-    #     ) as temp_dir:
-    #         clone_path = os.path.join(temp_dir, repo)
-
-    #         # Clone repository
-    #         if not self.clone_repository(repo_url, clone_path):
-    #             logger.error("Failed to clone repository!")
-
-    #         # Cache the clone path for this session
-    #         self._clone_cache[repo_key] = clone_path
-
-    #         # Search in local repository
-    #         return self._search_code_elements_local(clone_path, query, top_k, max_files, weights)
-
-    @contextmanager
-    def _get_clone_directory(
-        self, owner: str, repo: str, cache_dir: str | None = None
-    ):
-        """Context manager for getting a clone directory - uses cache_dir if available, temp otherwise."""
-        if cache_dir:
-            # Use cache directory - persistent storage
-            cache_path = Path(cache_dir)
-            # Create the cache directory if it doesn't exist
-            cache_path.mkdir(parents=True, exist_ok=True)
-
-            try:
-                yield str(cache_path)
-            except Exception:
-                # Don't cleanup cache directory on error - might be useful for debugging
-                raise
-        else:
-            # Use temporary directory - auto cleanup
-            with tempfile.TemporaryDirectory(
-                prefix=f"github_search_{owner}_{repo}_",
-                delete=True,
-            ) as temp_dir:
-                yield temp_dir
-
     def search_code_elements(
         self,
         repo_url: str,
@@ -985,6 +853,7 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
         top_k: int = 25,
         max_files: int = 50,
         weights: dict[str, float] | None = None,
+        update_existing: bool = False,
     ) -> list[CodeElement]:
         """Search for code elements matching the query."""
         query = query.strip()
@@ -994,65 +863,39 @@ class LocalCloneBasedGitHubCodeSearcher(BaseGithubCodeSearcher):
 
         top_k = min(top_k, self.max_results)
         owner, repo = self.parse_github_url(repo_url)
-        repo_key = f"{owner}/{repo}"
 
-        if self.debug:
-            logger.debug(f"Clone cache : {self._clone_cache}")
+        # Use GitHandler to get repository path
+        repo_path = self.git_handler.get_repository_path(
+            owner,
+            repo,
+            update_existing=update_existing,
+        )
 
-        # Check if we already have this repo cloned
-        if repo_key in self._clone_cache:
-            clone_dir = self._clone_cache[repo_key]
-            if os.path.exists(clone_dir):
-                logger.info(f"Using cached clone at {clone_dir}")
-                return self._search_code_elements_local(
-                    clone_dir,
-                    query,
-                    top_k,
-                    max_files,
-                    weights,
-                )
+        if not repo_path:
+            logger.error("Failed to get repository!")
+            return []
 
-        # Use context manager for directory handling
-        with self._get_clone_directory(owner, repo, self.cache_dir) as clone_base:
-            # Create the full path where we want the repo to be cloned
-            clone_path = Path(clone_base) / f"{owner}_{repo}"
+        # Search in local repository
+        return self._search_code_elements_local(
+            repo_path,
+            query,
+            top_k,
+            max_files,
+            weights,
+        )
 
-            # Ensure parent directory exists
-            clone_path.parent.mkdir(parents=True, exist_ok=True)
-
-            logger.debug(f"Cloning to: {clone_path}")
-
-            # Clone repository directly to the target path
-            if not self.clone_repository(repo_url, str(clone_path)):
-                logger.error("Failed to clone repository!")
-                return []
-
-            # Cache the clone path for this session
-            self._clone_cache[repo_key] = str(clone_path)
-
-            # Search in local repository
-            return self._search_code_elements_local(
-                str(clone_path),
-                query,
-                top_k,
-                max_files,
-                weights,
-            )
+    def get_cache_info(self) -> dict:
+        """Get information about the git cache."""
+        return self.git_handler.get_cache_info()
 
     def cleanup_cache(self):
         """Cleanup cloned repositories."""
-        for repo_key, clone_path in self._clone_cache.items():
-            try:
-                if os.path.exists(clone_path):
-                    shutil.rmtree(clone_path)
-                    logger.info(f"Cleaned up {repo_key} cache")
-            except Exception as e:
-                logger.error(f"Error cleaning up {repo_key}: {e}")
-        self._clone_cache.clear()
+        self.git_handler.cleanup_cache()
 
     def __del__(self):
         """Cleanup on destruction."""
-        self.cleanup_cache()
+        # GitHandler will handle its own cleanup
+        pass
 
 
 class MultiRepoCodeSearcher:

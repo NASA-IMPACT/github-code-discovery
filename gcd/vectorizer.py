@@ -67,6 +67,12 @@ class RepoFinder:
             drop=True,
         )  # noqa
 
+        if self.embeddings_column not in self.data.columns:
+            logger.warning(
+                f"Embeddings column '{self.embeddings_column}' not found. "
+                "Use generate_embeddings() to create it.",
+            )
+
         # Parse embeddings if they exist and are in string format
         if (
             parse_embeddings_from_string
