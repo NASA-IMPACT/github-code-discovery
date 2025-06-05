@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from scipy.spatial.distance import cdist
+from tqdm import tqdm
 
 from gcd.embeddings import Embedder
 
@@ -63,7 +64,7 @@ class RepoFinder:
         )
         data = data.copy()
         self.data = data[data[self.area_column] != "Not a NASA Division"].reset_index(
-            drop=True
+            drop=True,
         )  # noqa
 
         # Parse embeddings if they exist and are in string format
@@ -163,7 +164,7 @@ class RepoFinder:
 
         # Process in batches to avoid memory issues
         embeddings = []
-        for i in range(0, len(texts), batch_size):
+        for i in tqdm(range(0, len(texts), batch_size), desc="Generating embeddings"):
             batch_texts = texts[i : i + batch_size]  # noqa
             logger.debug(
                 f"Processing batch {i // batch_size + 1}/"
@@ -171,7 +172,9 @@ class RepoFinder:
             )
 
             # Generate embeddings for batch
-            batch_embeddings = self.embedder.embed_texts(batch_texts)
+            batch_embeddings = self.embedder.embed_texts(
+                batch_texts, batch_size=batch_size
+            )
             embeddings.extend(batch_embeddings)
 
         # Store embeddings

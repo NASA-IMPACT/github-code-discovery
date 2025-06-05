@@ -5,9 +5,11 @@ description = "Pipeline for discoverying code in GitHub for NASA science"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "einops>=0.8.1",
     "joblib>=1.5.1",
     "loguru>=0.7.3",
     "numpy>=2.2.6",
+    "optimum>=1.25.3",
     "pyarrow>=20.0.0",
     "pydantic>=2.11.5",
     "python-dotenv>=1.1.0",
