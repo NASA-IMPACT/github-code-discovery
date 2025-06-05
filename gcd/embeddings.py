@@ -18,11 +18,12 @@ class Embedder:
         self.model_name = model_name
         logger.info(f"Loading SentenceTransformer model: {self.model_name}")
         self.model = SentenceTransformer(
-            self.model_name, trust_remote_code=trust_remote_code
+            self.model_name,
+            trust_remote_code=trust_remote_code,
         )
         self._model_original_max_seq_length = self.model.max_seq_length
         logger.info(
-            f"Model original max sequence length: {self.model.max_seq_length} tokens"
+            f"Model original max sequence length: {self.model.max_seq_length} tokens",
         )
         if model_max_seq_length is not None:
             logger.info(
@@ -46,7 +47,9 @@ class Embedder:
         if isinstance(texts, str):
             texts = [texts]
         return self.model.encode(
-            texts, convert_to_tensor=False, batch_size=batch_size
+            texts,
+            convert_to_tensor=False,
+            batch_size=batch_size,
         )
 
     def get_embedding_dimensions(self) -> int:

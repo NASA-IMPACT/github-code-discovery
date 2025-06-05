@@ -173,7 +173,8 @@ class RepoFinder:
 
             # Generate embeddings for batch
             batch_embeddings = self.embedder.embed_texts(
-                batch_texts, batch_size=batch_size
+                batch_texts,
+                batch_size=batch_size,
             )
             embeddings.extend(batch_embeddings)
 

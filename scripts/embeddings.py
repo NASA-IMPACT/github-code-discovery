@@ -9,6 +9,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gcd.embeddings import Embedder
+from gcd.vectorizer import RepoFinder
 
 
 def main():
@@ -24,13 +25,13 @@ def main():
     # _data = pd.read_csv("data/repositories_with_embeddings.csv")
 
     # Create vectorizer
-    # repo_finder = RepoFinder(embedder=embedder, data=_data, debug=True)
+    repo_finder = RepoFinder(embedder=embedder, data=_data, debug=True)
 
-    # # Generate embeddings
-    # repo_finder.generate_embeddings(batch_size=8)
+    # Generate embeddings
+    repo_finder.generate_embeddings(batch_size=16)
 
-    # # Save to CSV
-    # repo_finder.save_to_csv("data/repositories_with_embeddings_jina.csv")
+    # Save to CSV
+    repo_finder.save_to_csv("data/repositories_with_embeddings_jina.csv")
 
 
 if __name__ == "__main__":
