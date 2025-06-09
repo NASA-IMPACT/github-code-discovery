@@ -27,6 +27,12 @@ dependencies = [
     "types-requests>=2.32.0.20250515"
 ]
 
+[tool.setuptools]
+packages = ["gcd"]
+
+[tool.setuptools.package-dir]
+"" = "."
+
 [tool.ruff]
 line-length = 86
 
