@@ -6,13 +6,12 @@ import re
 import string
 from glob import glob
 from itertools import chain
-
+from loguru import logger
 import pandas as pd
 import pymupdf
 from joblib import Parallel, delayed
 
 GITHUB_REGEX = r"https?://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
-
 
 def clean_text_for_links(text: str) -> str:
     # Flatten the text by removing newlines
@@ -33,12 +32,10 @@ def clean_text_for_links(text: str) -> str:
     text = re.sub(r"(\.com/)\s+", r"\1", text)
     return text
 
-
 def extract_links_from_text(text: str) -> list[str]:
     cleaned = clean_text_for_links(text)
     raw_links = set(re.findall(GITHUB_REGEX, cleaned))
     return [link.rstrip(string.punctuation) for link in raw_links]
-
 
 def extract_links_from_dataframe(
     df: pd.DataFrame,
@@ -56,7 +53,6 @@ def extract_links_from_dataframe(
     )
     return list(set(chain.from_iterable(results)))
 
-
 # Extract text using your format and apply GitHub link extraction
 def process_single_pdf(pdf_path):
     try:
@@ -66,9 +62,8 @@ def process_single_pdf(pdf_path):
                 text += page.get_text()
         return extract_links_from_text(text)
     except Exception as e:
-        print(f"Error processing {pdf_path}: {e}")
+        logger.error(f"Error processing {pdf_path}: {e}")
         return []
-
 
 def extract_links_from_pdf_folder(
     pdf_folder: str,
@@ -97,4 +92,4 @@ def extract_links_from_pdf_folder(
         writer.writerow(["PDF Filename", "GitHub Link"])
         writer.writerows(unique_links)
 
-    print(f"Saved {len(unique_links)} links to {output_csv}")
+    logger.info(f"Saved {len(unique_links)} links to {output_csv}")

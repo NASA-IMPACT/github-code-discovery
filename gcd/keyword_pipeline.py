@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from gcd.github_api import search_repositories  
 from gcd.classification_utils import run_classification_pipeline
+from loguru import logger
 
 def keyword_pipeline(keyword: str, days_back: int, output_csv_path: str, token: str):
     output_dir = os.path.dirname(output_csv_path)
@@ -18,7 +19,7 @@ def keyword_pipeline(keyword: str, days_back: int, output_csv_path: str, token: 
                                 text_column="readme",
                                 url_column="url")
     os.remove(temp_path)
-    print(f"Saved {len(df)} unique repositories from the last {days_back} days.")
+    logger.info(f"Saved {len(df)} unique repositories from the last {days_back} days.")
 
 def run_keyword_pipeline(keyword: str, days_back: int, output_csv_path: str, token: str):
     keyword_pipeline(keyword, days_back, output_csv_path, token)

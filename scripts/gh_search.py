@@ -2,7 +2,7 @@ import click
 from gcd.doi_pipeline import run_doi_pipeline
 from gcd.ascl_pipeline import run_ascl_pipeline
 from gcd.keyword_pipeline import run_keyword_pipeline
-from config import GITHUB_TOKEN
+from config import GITHUB_ACCESS_TOKEN
 
 @click.group()
 def cli():
@@ -15,12 +15,12 @@ def cli():
 @click.argument("end_row", type=int)
 def dois(csv_path, start_row, end_row):
     """Run pipeline with a list of DOIs"""
-    run_doi_pipeline(GITHUB_TOKEN,csv_path, start_row, end_row)
+    run_doi_pipeline(GITHUB_ACCESS_TOKEN,csv_path, start_row, end_row)
 
 @cli.command()
 def ascl():
     """Run pipeline for ASCL dataset"""
-    run_ascl_pipeline(GITHUB_TOKEN)
+    run_ascl_pipeline(GITHUB_ACCESS_TOKEN)
 
 @cli.command()
 @click.argument("keyword", type=str)
@@ -28,7 +28,7 @@ def ascl():
 @click.argument("output_csv_path", type=click.Path())
 def keywords(keyword, days_back, output_csv_path):
     """Run keyword-based GitHub search pipeline"""
-    run_keyword_pipeline(keyword, days_back, output_csv_path, GITHUB_TOKEN)
+    run_keyword_pipeline(keyword, days_back, output_csv_path, GITHUB_ACCESS_TOKEN)
 
 if __name__ == "__main__":
     cli()

@@ -4,7 +4,7 @@ import csv
 import glob
 import os
 from urllib.parse import urlparse
-
+from loguru import logger
 import cloudscraper
 import pandas as pd
 from joblib import Parallel, delayed
@@ -15,21 +15,20 @@ BATCH_SIZE = 1000
 # Initialize SemanticScholar client
 sch = SemanticScholar()
 
-
 def process_single_doi(doi_url: str):
     """Process a single DOI: fetch metadata and abstract from SemanticScholar."""
     doi = doi_url.replace("https://doi.org/", "").strip()
     try:
         paper = sch.get_paper(doi)
-        print(paper["title"])
+        logger.info(f"Processing {doi_url}")
         abstract = paper["abstract"]  # Original access without `.get()`
         full_text_url = paper["openAccessPdf"][
             "url"
         ]  # Original access without `.get()`
-        print(f"Processed: {doi_url}")
+        logger.info(f"Processed: {doi_url}")
         return (doi_url, abstract, full_text_url)
     except Exception as e:
-        print(f"Failed: {doi_url} - {e}")
+        logger.error(f"Failed: {doi_url} - {e}")
         return None
 
 
@@ -43,8 +42,7 @@ def save_batch_to_csv(batch_data, batch_number, output_folder):
         for row in batch_data:
             if row:
                 writer.writerow(row)
-    print(f"Saved {filename}")
-
+    logger.info(f"Saved {filename}")
 
 def process_dois_parallel(
     input_csv,
@@ -62,7 +60,7 @@ def process_dois_parallel(
         next(reader)  # skip header
         doi_urls = [row[0].strip() for row in reader][start_row:end_row]
 
-    print("\n--- Processing DOIs ---")
+    logger.info("\n--- Processing DOIs ---")
     for batch_num, i in enumerate(
         range(0, len(doi_urls), BATCH_SIZE),
         start=1,
@@ -73,7 +71,6 @@ def process_dois_parallel(
         )
         save_batch_to_csv(results, batch_num, output_folder)
 
-
 def download_pdf(url, output_path):
     """Download a PDF from the given URL and save it to the specified file path."""
     try:
@@ -81,27 +78,22 @@ def download_pdf(url, output_path):
         response = scraper.get(url, stream=True)
 
         if response.status_code != 200:
-            print(
-                f"Failed to download PDF. HTTP {response.status_code} for URL: {url}",
-            )
+            logger.error(f"Failed to download PDF. HTTP {response.status_code} for URL: {url}")
             return
 
         content_type = response.headers.get("Content-Type", "")
         if "application/pdf" not in content_type:
-            print(
-                f"URL did not return a PDF: {url} (Content-Type: {content_type})",
-            )
+            logger.error(f"URL did not return a PDF: {url} (Content-Type: {content_type})")
             return
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
-        print(f"PDF saved as {output_path}")
+        logger.info(f"PDF saved as {output_path}")
 
     except Exception as e:
-        print(f"Error downloading {url}: {e}")
-
+        logger.error(f"Error downloading {url}: {e}")
 
 def download_all_pdfs_from_csvs(
     results_folder="./doi_results/links",
@@ -111,7 +103,7 @@ def download_all_pdfs_from_csvs(
     csv_files = glob.glob(os.path.join(results_folder, "batch_*.csv"))
 
     for csv_file in csv_files:
-        print(f"\nProcessing: {csv_file}")
+        logger.info(f"\nProcessing: {csv_file}")
         df = pd.read_csv(csv_file)
 
         for idx, row in df.iterrows():
@@ -125,6 +117,6 @@ def download_all_pdfs_from_csvs(
                     if not os.path.exists(output_file):  # Avoid re-downloading
                         download_pdf(url, output_file)
                     else:
-                        print(f"PDF already exists: {output_file}")
+                        logger.info(f"PDF already exists: {output_file}")
                 except Exception as e:
-                    print(f"Error handling URL {url}: {e}")
+                    logger.error(f"Error handling URL {url}: {e}")

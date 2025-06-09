@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import os
 from gcd.github_api_ql import process_github_links_from_csv
+from loguru import logger
 
 def fetch_and_process_ascl_links(token, 
                                   existing_links_path='./data/ascl_github_links.csv',
@@ -11,7 +12,7 @@ def fetch_and_process_ascl_links(token,
     response = requests.get(url)
 
     if response.status_code != 200:
-        print(f"Failed to fetch data. Status code: {response.status_code}")
+        logger.error(f"Failed to fetch data. Status code: {response.status_code}")
         return
 
     data = response.json()
@@ -28,15 +29,15 @@ def fetch_and_process_ascl_links(token,
     current_df = pd.DataFrame(github_links, columns=['url'])
 
     try:
-        source_df = pd.read_csv(existing_links_path)
+        source_df = pd.read_csv(existing_links_path)[5:]
     except Exception as e:
-        print(f"Error reading existing links: {e}")
+        logger.warning(f"Error reading existing links: {e}")
         source_df = pd.DataFrame(columns=['url'])
 
     new_links_df = current_df[~current_df['url'].isin(source_df['url'])]
     new_links_df = new_links_df.rename(columns={'url': 'GitHub Link'})
 
-    print(new_links_df['GitHub Link'].tolist())
+    logger.info(f"Found {len(new_links_df)} new GitHub links.")
 
     # Save to a temporary file for processing
     temp_path = "./temp_ascl_links.csv"
@@ -49,6 +50,7 @@ def fetch_and_process_ascl_links(token,
                                   csv_output_path=csv_output_path)
     
     os.remove(temp_path)
+    logger.info("Temporary file removed and processing complete.")
 
 
 

@@ -8,7 +8,6 @@ from gcd.scorer import (
     WeightedRMSScorer,
 )
 
-
 # Factory function for easy scorer creation
 def create_scorer(
     scorer_type: str = "weighted_average",

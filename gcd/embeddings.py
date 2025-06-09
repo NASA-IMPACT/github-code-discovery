@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 import numpy as np
 from loguru import logger
 from sentence_transformers import SentenceTransformer
-
 
 class Embedder:
     """Base class for embedding models."""

@@ -4,6 +4,7 @@ from typing import Any
 import requests
 import time
 from datetime import datetime, timedelta
+from loguru import logger
 
 def get_github_repo_info(
     repo_url: str,
@@ -19,9 +20,8 @@ def get_github_repo_info(
     # Get repo info
     repo_resp = requests.get(base_url, headers=headers)
     if not repo_resp.ok:
-        raise Exception(
-            f"Failed to fetch repo info from {repo_url}: {repo_resp.status_code} {repo_resp.text}",
-        )
+        logger.error(f"Failed to fetch repo info from {repo_url}: {repo_resp.status_code} {repo_resp.text}")
+
     repo_info = repo_resp.json()
 
     # Get owner's actual name
@@ -77,9 +77,7 @@ def get_github_readme(
     readme_url = f"https://api.github.com/repos/{owner}/{repo}/readme"
     resp = requests.get(readme_url, headers=headers)
     if not resp.ok:
-        raise Exception(
-            f"Failed to fetch README from {repo_url}: {resp.status_code} {resp.text}",
-        )
+        logger.error(f"README not found for {repo_url}")
     content = base64.b64decode(resp.json().get("content", "")).decode("utf-8")
     return {"readme_text": content}
 
@@ -112,7 +110,7 @@ def search_repositories(keyword, days_back=30, per_interval_max=100, GITHUB_TOKE
 
     for start_date, end_date in intervals:
         created_filter = f"{start_date.isoformat()}..{end_date.isoformat()}"
-        print(f"Fetching: {created_filter}")
+        logger.info(f"Fetching: {created_filter}")
         total_pages = per_interval_max // per_page
 
         for page in range(1, total_pages + 1):
@@ -126,7 +124,7 @@ def search_repositories(keyword, days_back=30, per_interval_max=100, GITHUB_TOKE
 
             response = requests.get(SEARCH_URL, headers=HEADERS, params=params)
             if response.status_code != 200:
-                print(f"Failed for {created_filter}, page {page}: {response.status_code}, {response.text}")
+                logger.error(f"Failed for {created_filter}, page {page}: {response.status_code}, {response.text}")
                 break
 
             items = response.json().get("items", [])
@@ -141,7 +139,7 @@ def search_repositories(keyword, days_back=30, per_interval_max=100, GITHUB_TOKE
                         readme_dict = get_github_readme(item["html_url"], GITHUB_TOKEN)
                         readme = readme_dict.get("readme_text", "")
                     except Exception as e:
-                        print(f"Error fetching README for {item['html_url']}: {e}")
+                        logger.error(f"Error fetching README for {item['html_url']}: {e}")
                         readme = ""
                     repos.append({
                         "name": item["full_name"],

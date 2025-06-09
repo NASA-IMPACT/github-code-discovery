@@ -1,11 +1,9 @@
 from __future__ import annotations
-
 import json
 import time
-
 import pandas as pd
 import requests
-
+from loguru import logger
 
 def get_github_readme(repo_url: str, token: str) -> dict[str, str]:
     headers = {
@@ -39,9 +37,8 @@ def get_github_readme(repo_url: str, token: str) -> dict[str, str]:
     )
 
     if not response.ok:
-        raise Exception(
-            f"GraphQL query failed: {response.status_code} {response.text}",
-        )
+        logger.error(f"GraphQL query failed: {response.status_code} {response.text}")
+
 
     data = response.json()
     readme_text = data["data"]["repository"]["object"]["text"]
@@ -70,21 +67,21 @@ def process_github_links_from_csv(
     links = df["GitHub Link"].dropna().unique().tolist()
 
     output_data = {}
-    print("Fetching GitHub README files...")
+    logger.info(f"Fetching GitHub README files...")
 
     for link in links:
-        print(f"Processing {link}")
+        logger.info(f"Processing {link}")
         try:
             info = get_github_readme(link, token=token)
             output_data[link] = info
             time.sleep(sleep_time)  # avoid rate limits
         except Exception as e:
-            print(f"Failed for {link}: {e}")
+            logger.error(f"Failed for {link}: {e}")
 
     # Save JSON
     with open(json_output_path, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2)
-    print(f"Saved README info to {json_output_path}")
+    logger.info(f"Saved README info to {json_output_path}")
 
     # Save CSV
     csv_rows = [
@@ -97,4 +94,4 @@ def process_github_links_from_csv(
         for k, v in output_data.items()
     ]
     pd.DataFrame(csv_rows).to_csv(csv_output_path, index=False)
-    print(f"Saved README CSV to {csv_output_path}")
+    logger.info(f"Saved README CSV to {csv_output_path}")

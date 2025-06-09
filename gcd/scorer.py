@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
 import numpy as np
 from loguru import logger
-
 from gcd.embeddings import Embedder
 from gcd.schema import CodeElement
-
 
 class CodeElementScorer(ABC):
     """Base abstract class for embedding-based code element scorers."""

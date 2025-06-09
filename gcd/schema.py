@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
-
 from pydantic import BaseModel, field_validator
-
 
 class CodeElement(BaseModel):
     name: str
