@@ -5,17 +5,26 @@ description = "Pipeline for discoverying code in GitHub for NASA science"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "click",
+    "cloudscraper",
     "einops>=0.8.1",
     "joblib>=1.5.1",
     "loguru>=0.7.3",
     "numpy>=2.2.6",
+    "openai",
     "optimum>=1.25.3",
+    "pandas",
     "pyarrow>=20.0.0",
     "pydantic>=2.11.5",
+    "pydantic-ai",
+    "pymupdf",
     "python-dotenv>=1.1.0",
     "requests>=2.32.3",
+    "scipy",
+    "semanticscholar",
     "sentence-transformers>=4.1.0",
-    "types-requests>=2.32.0.20250515",
+    "tqdm",
+    "types-requests>=2.32.0.20250515"
 ]
 
 [tool.ruff]
