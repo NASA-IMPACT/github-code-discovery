@@ -2,6 +2,7 @@ import sys
 import pandas as pd
 import os
 from gcd.github_api import search_repositories  
+from gcd.github_api_ql import search_repositories_graphql
 from gcd.classification_utils import run_classification_pipeline
 from loguru import logger
 
@@ -10,7 +11,8 @@ def keyword_pipeline(keyword: str, days_back: int, output_csv_path: str, token: 
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
         
-    repos = search_repositories(keyword=keyword, days_back=days_back, GITHUB_TOKEN=token)
+    #repos = search_repositories(keyword=keyword, days_back=days_back, GITHUB_TOKEN=token) # REST API Implementation
+    repos = search_repositories_graphql(keyword=keyword, days_back=days_back, GITHUB_TOKEN=token) # GraphQL Implementation
     df = pd.DataFrame(repos).drop_duplicates(subset="url")
     temp_path = "kw_temp.csv"
     df.to_csv(temp_path, index=False)

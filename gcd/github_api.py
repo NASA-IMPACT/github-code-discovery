@@ -153,4 +153,5 @@ def search_repositories(keyword, days_back=30, per_interval_max=100, GITHUB_TOKE
 
             time.sleep(1)
 
+    logger.info(f"Found {len(repos)} repos")
     return repos
