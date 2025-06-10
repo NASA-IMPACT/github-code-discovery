@@ -11,7 +11,7 @@ Choose one of the following methods:
 # Using pip
 pip install uv
 
-# Using Homebrew (macOS)
+# Using Homebrew 
 brew install uv
 ```
 
@@ -62,7 +62,7 @@ python3 scripts/config.py
 
 ### Next Steps
 
-You're now ready to use the GitHub Code Discovery tool! Check the documentation for usage instructions and examples.
+You're now ready to use the GitHub Code Discovery tool! Check the documentation below for usage instructions and examples.
 
 ## Pipeline: DOI Links
 
