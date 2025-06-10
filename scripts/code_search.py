@@ -14,7 +14,7 @@ from pathlib import Path
 
 import click
 import pandas as pd
-
+from loguru import logger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import Core Components
@@ -23,12 +23,16 @@ from gcd.scorer import WeightedAverageSelectiveScorer
 from gcd.search import LocalCloneBasedGitHubCodeSearcher, MultiRepoCodeSearcher
 from gcd.vectorizer import RepoFinder
 
+from config import GITHUB_ACCESS_TOKEN
+github_access_token = GITHUB_ACCESS_TOKEN
+if not github_access_token:
+    logger.error("Error: GITHUB_ACCESS_TOKEN environment variable not set")
 
 @click.command()
 @click.argument("query", required=True)
 @click.option(
     "--github-access-token",
-    default=os.getenv("GITHUB_ACCESS_TOKEN"),
+    default=github_access_token,
     help="GitHub access token for API requests (default: env GITHUB_ACCESS_TOKEN)",
 )
 @click.option(

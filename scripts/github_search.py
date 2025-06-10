@@ -11,6 +11,10 @@ from loguru import logger
 from gcd.embeddings import EmbeddingScorer
 from gcd.search import GitHubCodeSearcher
 
+from config import GITHUB_ACCESS_TOKEN
+github_token = GITHUB_ACCESS_TOKEN
+if not github_token:
+    logger.error("Error: GITHUB_ACCESS_TOKEN environment variable not set")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -41,12 +45,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    # Get GitHub token from environment
-    github_token = os.getenv("GITHUB_ACCESS_TOKEN")
-    if not github_token:
-        logger.error("Error: GITHUB_ACCESS_TOKEN environment variable not set")
-        return 1
 
     try:
         scorer = EmbeddingScorer(

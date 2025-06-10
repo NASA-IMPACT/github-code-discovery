@@ -24,6 +24,7 @@ dependencies = [
     "semanticscholar",
     "sentence-transformers>=4.1.0",
     "tqdm",
+    "gdown",
     "types-requests>=2.32.0.20250515"
 ]
 
