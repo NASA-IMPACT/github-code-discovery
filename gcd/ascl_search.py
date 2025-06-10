@@ -29,7 +29,7 @@ def fetch_and_process_ascl_links(token,
     current_df = pd.DataFrame(github_links, columns=['url'])
 
     try:
-        source_df = pd.read_csv(existing_links_path)[5:]
+        source_df = pd.read_csv(existing_links_path)
     except Exception as e:
         logger.warning(f"Error reading existing links: {e}")
         source_df = pd.DataFrame(columns=['url'])
