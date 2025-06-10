@@ -81,7 +81,7 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 python scripts/gh_search.py dois <doi_csv_file> <start_row> <end_row>
 
 Example:
-python scripts/gh_search.py dois ./data/extracted_dois.csv 0 -1
+python scripts/gh_search.py dois ./data/extracted_dois.csv 500 600
 ```
 
 ## Pipeline: Keyword Search
