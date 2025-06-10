@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import click
 from gcd.doi_pipeline import run_doi_pipeline
 from gcd.ascl_pipeline import run_ascl_pipeline
