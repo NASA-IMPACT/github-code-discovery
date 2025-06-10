@@ -1,28 +1,68 @@
 # github-code-discovery
 Tools for discoverying github code
 
-# Setup the environment
+## Setup Instructions
 
-We use [uv](https://github.com/astral-sh/uv) with virtualenv
+#### 1. Install UV
 
-## First time -> init project using uv
-```bash
-uv init
-uv venv --python 3.12
-```
-
-## activate virtual env
-
-`source venv/bin/activate`
-
-## install pre-commit hooks
+Choose one of the following methods:
 
 ```bash
-uv pip install pre-commit-hooks
-pre-commit install
+# Using pip
+pip install uv
+
+# Using Homebrew (macOS)
+brew install uv
 ```
 
+#### 2. Clone the Repository
 
+```bash
+git clone https://github.com/NASA-IMPACT/github-code-discovery.git
+```
+
+#### 3. Setup the Environment
+
+```bash
+cd github-code-discovery
+uv venv
+source .venv/bin/activate
+```
+
+#### 4. Install Dependencies
+
+```bash
+uv pip install -e .
+```
+
+#### 5. Configure API Keys
+
+Create and configure your environment variables:
+
+```bash
+touch .env
+nano .env
+```
+
+Add the following to your `.env` file:
+
+```env
+S2_API_KEY=your_s2_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+GITHUB_ACCESS_TOKEN=your_github_token_here
+```
+
+#### 6. Verify Configuration
+
+Test that your API keys are properly configured:
+
+```bash
+python3 scripts/config.py
+```
+
+### Next Steps
+
+You're now ready to use the GitHub Code Discovery tool! Check the documentation for usage instructions and examples.
 
 ## Pipeline: DOI Links
 
@@ -38,10 +78,10 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 ### Usage
 
 ```bash
-python gh_search.py dois <doi_csv_file> <start_row> <end_row>
+python scripts/gh_search.py dois <doi_csv_file> <start_row> <end_row>
 
 Example:
-python gh_search.py dois ./data/extracted_dois.csv 0 -1
+python scripts/gh_search.py dois ./data/extracted_dois.csv 0 -1
 ```
 
 ## Pipeline: Keyword Search
@@ -57,10 +97,10 @@ A pipeline to discover and classify GitHub repositories using keyword-based sear
 ### Usage
 
 ```bash
-python gh_search.py keywords "<search_keyword>" <days_back> <output_csv_path>
+python scripts/gh_search.py keywords "<search_keyword>" <days_back> <output_csv_path>
 
 Example:
-python gh_search.py keywords "NASA" 90 ./results/kw_output.csv
+python scripts/gh_search.py keywords "NASA" 90 ./results/kw_output.csv
 ```
 
 ## Pipeline: ASCL Search
@@ -76,7 +116,7 @@ A pipeline to extract and classify GitHub repository links from the Astrophysics
 ### Usage
 
 ```bash
-python gh_search.py ascl
+python scripts/gh_search.py ascl
 ```
 
 ## Pipeline: GitHub Code Search
