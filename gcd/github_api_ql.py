@@ -201,7 +201,11 @@ def search_repositories_graphql(keyword, days_back=30, per_interval_max=100, GIT
             time.sleep(1)
 
     logger.info(f"Found {len(repos)} repos")
-    return repos
+
+    repos_with_readme = [repo for repo in repos if repo["readme"].strip()]
+    logger.info(f"{len(repos_with_readme)} repos have accessible README content")
+
+    return repos_with_readme
 
 
 def build_search_query(keyword, created_filter, per_page, cursor=None):
