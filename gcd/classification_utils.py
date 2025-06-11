@@ -17,6 +17,7 @@ os.environ['OPENAI_API_KEY'] = os.getenv("OPENAI_API_KEY")
 
 # Define the model
 openai_model = OpenAIModel('gpt-4.1-mini')
+SAMPLE_AVERAGE_COST = 0.002273
 INPUT_COST_PER_1M = 0.40      
 OUTPUT_COST_PER_1M = 1.60     
 # Check pricing here: https://platform.openai.com/docs/pricing
@@ -239,6 +240,17 @@ def run_classification_pipeline(input_csv_path: str, output_csv_path: str, text_
     positive_texts = [flatten(text) for text in positive_df[text_column].values]
     positive_repo_urls = list(positive_df[url_column].values)
 
+    sample_count = len(positive_df)
+    estimated_total_cost = SAMPLE_AVERAGE_COST * sample_count
+    logger.info(f"Total Samples: {sample_count}")
+    logger.info(f"Estimated Classification Cost: ${estimated_total_cost:.4f} (${SAMPLE_AVERAGE_COST:.4f} per README)")
+
+    # Ask user for confirmation to continue
+    user_input = input("Do you want to proceed with classification? (Y/N): ").strip().lower()
+    if user_input != 'y':
+        logger.info("Aborting classification pipeline as per user input.")
+        sys.exit(0)
+
     # Run classification
     processed_data = asyncio.run(classify_all_readmes(readme_agent, positive_texts, positive_repo_urls))
 
@@ -246,7 +258,9 @@ def run_classification_pipeline(input_csv_path: str, output_csv_path: str, text_
     results_df = pd.DataFrame(processed_data)
     results_df.to_csv(output_csv_path, index=False)
 
+    total_actual_cost = sum(row['cost'] for row in processed_data if 'cost' in row)
     logger.info(f"Done! Saved results to {output_csv_path}")
+    logger.info(f"Total Actual Classification Cost: ${total_actual_cost:.4f}")
 
 
 
