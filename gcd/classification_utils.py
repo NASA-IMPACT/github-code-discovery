@@ -1,26 +1,27 @@
 # Importing the necessary libraries
+from __future__ import annotations
+
+import asyncio
+import sys
+from enum import Enum
+
+import pandas as pd
+from dotenv import load_dotenv
+from loguru import logger
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from enum import Enum
-from typing import Optional
-import asyncio
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
-import pandas as pd
-import os
-from dotenv import load_dotenv
-import asyncio
-from loguru import logger
-import sys
+
 load_dotenv()
-os.environ['OPENAI_API_KEY'] = os.getenv("OPENAI_API_KEY")
+# os.environ['OPENAI_API_KEY'] = os.getenv("OPENAI_API_KEY")
 
 # Define the model
-openai_model = OpenAIModel('gpt-4.1-mini')
+openai_model = OpenAIModel("gpt-4.1-mini")
 SAMPLE_AVERAGE_COST = 0.002273
-INPUT_COST_PER_1M = 0.40      
-OUTPUT_COST_PER_1M = 1.60     
+INPUT_COST_PER_1M = 0.40
+OUTPUT_COST_PER_1M = 1.60
 # Check pricing here: https://platform.openai.com/docs/pricing
+
 
 # Output Model
 class NasaArea(str, Enum):
@@ -31,10 +32,18 @@ class NasaArea(str, Enum):
     BIOLOGICAL_PHYSICAL_SCIENCES = "Biological and Physical Sciences Division"
     NOT_NASA_DIVISION = "Not a NASA Division"
 
+
 # Output Schema
 class ReadmeClassification(BaseModel):
-    area: NasaArea = Field(..., description="The NASA area the README content best fits into. If none, select 'Not a NASA Division'.")
-    reasoning: Optional[str] = Field(None, description="A brief explanation for the classification choice.")
+    area: NasaArea = Field(
+        ...,
+        description="The NASA area the README content best fits into. If none, select 'Not a NASA Division'.",
+    )
+    reasoning: str | None = Field(
+        None,
+        description="A brief explanation for the classification choice.",
+    )
+
 
 # Context from SDE
 evaluation_criteria = """
@@ -156,7 +165,7 @@ Expected Classification:
 """
 
 # Define Pydantic Agent
-readme_agent =  Agent(
+readme_agent = Agent(
     model=openai_model,
     retries=3,
     output_type=ReadmeClassification,
@@ -171,11 +180,15 @@ EVALUATION CRITERIA:
 
 Examples:
 {few_shot_examples}
-"""
+""",
 )
 
+
 # To run the Agent
-async def classify_readme(agent_instance: Agent, readme_content: str) -> ReadmeClassification:
+async def classify_readme(
+    agent_instance: Agent,
+    readme_content: str,
+) -> ReadmeClassification:
     user_prompt = f"""
     Please classify the following README content:
     ---
@@ -185,39 +198,60 @@ async def classify_readme(agent_instance: Agent, readme_content: str) -> ReadmeC
     try:
         result = await agent_instance.run(user_prompt)
         usage = result.usage()
-        prompt_tokens = usage.request_tokens 
+        prompt_tokens = usage.request_tokens
         completion_tokens = usage.response_tokens
-        logger.info(f"Prompt Tokens: {prompt_tokens}, Completion Tokens: {completion_tokens}")
+        logger.info(
+            f"Prompt Tokens: {prompt_tokens}, Completion Tokens: {completion_tokens}",
+        )
         prompt_cost = (prompt_tokens / 1_000_000) * INPUT_COST_PER_1M
         completion_cost = (completion_tokens / 1_000_000) * OUTPUT_COST_PER_1M
         total_cost = prompt_cost + completion_cost
         logger.info(f"Cost: ${total_cost:.6f}")
-        return result.output, total_cost # The output is an instance of ReadmeClassification
+        return (
+            result.output,
+            total_cost,
+        )  # The output is an instance of ReadmeClassification
     except Exception as e:
         logger.error(f"Error during classification: {e}")
-        return ReadmeClassification(area=NasaArea.NOT_NASA_DIVISION, reasoning=f"Error during classification: {str(e)}")
-    
+        return ReadmeClassification(
+            area=NasaArea.NOT_NASA_DIVISION,
+            reasoning=f"Error during classification: {str(e)}",
+        )
+
+
 # Flatten function
 def flatten(text):
-    return ' '.join(text.split())
+    return " ".join(text.split())
+
 
 async def classify_all_readmes(agent_instance, texts, urls):
     async def classify_one(i, text, link):
-        logger.info(f"Processing sample {i+1}/{len(texts)}")
-        classification_output, total_cost = await classify_readme(agent_instance, text)
+        logger.info(f"Processing sample {i + 1}/{len(texts)}")
+        classification_output, total_cost = await classify_readme(
+            agent_instance,
+            text,
+        )
         return {
-            'URL': link,
-            'text': text,
-            'area': classification_output.area.value,
-            'reasoning': classification_output.reasoning,
-            'cost': total_cost
+            "URL": link,
+            "text": text,
+            "area": classification_output.area.value,
+            "reasoning": classification_output.reasoning,
+            "cost": total_cost,
         }
 
-    tasks = [classify_one(i, text, link) for i, (text, link) in enumerate(zip(texts, urls))]
+    tasks = [
+        classify_one(i, text, link) for i, (text, link) in enumerate(zip(texts, urls))
+    ]
     results = await asyncio.gather(*tasks)
     return results
 
-def run_classification_pipeline(input_csv_path: str, output_csv_path: str, text_column: str = "readme_text", url_column: str = "repo_url"):
+
+def run_classification_pipeline(
+    input_csv_path: str,
+    output_csv_path: str,
+    text_column: str = "readme_text",
+    url_column: str = "repo_url",
+):
     """
     Run the README classification pipeline.
 
@@ -225,15 +259,15 @@ def run_classification_pipeline(input_csv_path: str, output_csv_path: str, text_
         input_csv_path (str): Path to CSV containing columns 'repo_url' and 'readme_text'.
         output_csv_path (str): Path where the result CSV will be saved.
     """
-    logger.info(f"Running Relevancy Classifier Pipeline")
+    logger.info("Running Relevancy Classifier Pipeline")
     # Load dataset
     try:
-      positive_df = pd.read_csv(input_csv_path)
-      if positive_df.empty:
-          logger.error(f"Input CSV at '{input_csv_path}' is empty. Aborting.")
+        positive_df = pd.read_csv(input_csv_path)
+        if positive_df.empty:
+            logger.error(f"Input CSV at '{input_csv_path}' is empty. Aborting.")
     except Exception as e:
-          logger.error(f"Failed to load input CSV: {e}, No GitHub links to process")
-          sys.exit(1)
+        logger.error(f"Failed to load input CSV: {e}, No GitHub links to process")
+        sys.exit(1)
 
     logger.info(f"Loaded {len(positive_df)} rows from {input_csv_path}")
     positive_df[text_column] = positive_df[text_column].fillna("")
@@ -248,38 +282,42 @@ def run_classification_pipeline(input_csv_path: str, output_csv_path: str, text_
         "2": "gpt-o4-mini",
         "3": "gpt-o3",
         "4": "gpt-4.1",
-        "5": "gpt-4.1-mini"
+        "5": "gpt-4.1-mini",
     }
 
     print("Select an OpenAI model:")
     for k, v in model_options.items():
         print(f"{k}: {v}")
 
-    selected_key = input("Enter the number corresponding to your model choice: ").strip()
+    selected_key = input(
+        "Enter the number corresponding to your model choice: ",
+    ).strip()
     selected_model_name = model_options.get(selected_key, "gpt-4.1-mini")
     logger.info(f"Selected model: {selected_model_name}")
     openai_model.name = selected_model_name
 
     estimated_total_cost = SAMPLE_AVERAGE_COST * sample_count
-    logger.info(f"Estimated Classification Cost: ${estimated_total_cost:.4f} (${SAMPLE_AVERAGE_COST:.4f} per README)")
+    logger.info(
+        f"Estimated Classification Cost: ${estimated_total_cost:.4f} (${SAMPLE_AVERAGE_COST:.4f} per README)",
+    )
 
     # Ask user for confirmation to continue
-    user_input = input("Do you want to proceed with classification? (Y/N): ").strip().lower()
-    if user_input != 'y':
+    user_input = (
+        input("Do you want to proceed with classification? (Y/N): ").strip().lower()
+    )
+    if user_input != "y":
         logger.info("Aborting classification pipeline as per user input.")
         sys.exit(0)
 
     # Run classification
-    processed_data = asyncio.run(classify_all_readmes(readme_agent, positive_texts, positive_repo_urls))
+    processed_data = asyncio.run(
+        classify_all_readmes(readme_agent, positive_texts, positive_repo_urls),
+    )
 
     # Save results
     results_df = pd.DataFrame(processed_data)
     results_df.to_csv(output_csv_path, index=False)
 
-    total_actual_cost = sum(row['cost'] for row in processed_data if 'cost' in row)
+    total_actual_cost = sum(row["cost"] for row in processed_data if "cost" in row)
     logger.info(f"Done! Saved results to {output_csv_path}")
     logger.info(f"Total Actual Classification Cost: ${total_actual_cost:.4f}")
-
-
-
-
