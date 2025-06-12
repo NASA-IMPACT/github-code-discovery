@@ -127,7 +127,7 @@ python scripts/gh_search.py ascl
 python scripts/cocde_search.py validate-setup
 ```
 
-**search repo&&
+**search repo**
 
 ```bash
 python scripts/code_search.py search-repo "
