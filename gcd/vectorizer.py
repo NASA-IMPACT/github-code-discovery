@@ -296,3 +296,67 @@ class RepoFinder:
                 stats["embedding_dim"] = sample_emb.shape[0]
 
         return stats
+
+    def print_results(
+        self,
+        results: list[dict],
+        show_text: bool = True,
+        max_text_length: int = 200,
+    ) -> None:
+        """
+        Print search results in a formatted way.
+
+        Args:
+            results: List of dictionaries from find_repo() method
+            show_text: Whether to display the text content
+            max_text_length: Maximum length of text to display (truncated if longer)
+        """
+        if not results:
+            print("No matching repositories found.")
+            return
+
+        print(f"\nTop {len(results)} matching repositories:")
+        print("=" * 80)
+
+        for i, result in enumerate(results, 1):
+            print(f"\n{i}. Repository Match")
+
+            # Display score
+            score = result.get("score", 0)
+            print(f" Similarity Score: {score:.3f}")
+
+            # Display area if available
+            if self.area_column in result:
+                area = result.get(self.area_column, "N/A")
+                print(f" Area: {area}")
+
+            # Display other relevant fields (excluding text, embeddings, and score)
+            excluded_fields = {
+                self.text_column,
+                self.embeddings_column,
+                "score",
+                self.area_column,
+            }
+            for key, value in result.items():
+                if key not in excluded_fields and value is not None:
+                    # Handle different data types appropriately
+                    if isinstance(value, (int, float, str, bool)):  # noqa
+                        print(f" {key.replace('_', ' ').title()}: {value}")
+
+            # Display text content if requested
+            if show_text and self.text_column in result:
+                text_content = result.get(self.text_column, "")
+                if text_content:
+                    # Truncate long text
+                    if len(text_content) > max_text_length:
+                        text_preview = text_content[:max_text_length] + "..."
+                    else:
+                        text_preview = text_content
+
+                    print(" Text Content:")
+                    # Indent the text for better readability
+                    text_lines = text_preview.split("\n")
+                    for line in text_lines:
+                        print(f"   {line}")
+
+            print("-" * 80)

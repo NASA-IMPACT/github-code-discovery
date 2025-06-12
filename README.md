@@ -11,7 +11,7 @@ Choose one of the following methods:
 # Using pip
 pip install uv
 
-# Using Homebrew 
+# Using Homebrew
 brew install uv
 ```
 
@@ -127,11 +127,17 @@ python scripts/gh_search.py ascl
 python scripts/cocde_search.py validate-setup
 ```
 
+**search repo&&
+
+```bash
+python scripts/code_search.py search-repo "
+```
+
 **search code**
 
 
 ```bash
-python scripts/code_search.py search-code "simulation"
+python scripts/code_search.py search-code "weather forecasting" --top-k 5
 ```
 
 ```bash
@@ -139,5 +145,5 @@ python scripts/code_search.py search-code "atmospheric pressure simulation"  --o
 ```
 
 The search happens at 2 levels:
-- First, search for a list of top N repotories
-- Then search for code in each of those repo
+- First, search for a list of top N repotories (repo search)
+- Then search for code in each of those repo (code search per repo)
