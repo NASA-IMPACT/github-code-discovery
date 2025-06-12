@@ -130,14 +130,14 @@ python scripts/cocde_search.py validate-setup
 **search repo**
 
 ```bash
-python scripts/code_search.py search-repo "
+python scripts/code_search.py search-repo "weather forecasting" --top-k=5
 ```
 
 **search code**
 
 
 ```bash
-python scripts/code_search.py search-code "weather forecasting" --top-k 5
+python scripts/code_search.py search-code
 ```
 
 ```bash
