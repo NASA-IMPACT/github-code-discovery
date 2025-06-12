@@ -241,8 +241,26 @@ def run_classification_pipeline(input_csv_path: str, output_csv_path: str, text_
     positive_repo_urls = list(positive_df[url_column].values)
 
     sample_count = len(positive_df)
-    estimated_total_cost = SAMPLE_AVERAGE_COST * sample_count
     logger.info(f"Total Samples: {sample_count}")
+
+    model_options = {
+        "1": "gpt-4o-mini",
+        "2": "gpt-o4-mini",
+        "3": "gpt-o3",
+        "4": "gpt-4.1",
+        "5": "gpt-4.1-mini"
+    }
+
+    print("Select an OpenAI model:")
+    for k, v in model_options.items():
+        print(f"{k}: {v}")
+
+    selected_key = input("Enter the number corresponding to your model choice: ").strip()
+    selected_model_name = model_options.get(selected_key, "gpt-4.1-mini")
+    logger.info(f"Selected model: {selected_model_name}")
+    openai_model.name = selected_model_name
+
+    estimated_total_cost = SAMPLE_AVERAGE_COST * sample_count
     logger.info(f"Estimated Classification Cost: ${estimated_total_cost:.4f} (${SAMPLE_AVERAGE_COST:.4f} per README)")
 
     # Ask user for confirmation to continue
