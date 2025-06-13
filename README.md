@@ -81,7 +81,7 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 python scripts/gh_search.py dois <doi_csv_file> <start_row> <end_row>
 
 Example:
-python scripts/gh_search.py dois ./data/extracted_dois.csv 500 600
+python scripts/gh_search.py dois ./data/extracted_dois.csv 0 -1
 ```
 
 ## Pipeline: Keyword Search
@@ -100,7 +100,7 @@ A pipeline to discover and classify GitHub repositories using keyword-based sear
 python scripts/gh_search.py keywords "<search_keyword>" <days_back> <output_csv_path>
 
 Example:
-python scripts/gh_search.py keywords "NASA" 90 ./results/kw_output.csv
+python scripts/gh_search.py keywords "Hubble" 90 ./results/kw_output.csv
 ```
 
 ## Pipeline: ASCL Search
@@ -145,5 +145,5 @@ python scripts/code_search.py search-code "atmospheric pressure simulation"  --o
 ```
 
 The search happens at 2 levels:
-- First, search for a list of top N repotories (repo search)
+- First, search for a list of top N repositories (repo search)
 - Then search for code in each of those repo (code search per repo)
