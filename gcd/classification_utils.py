@@ -318,7 +318,7 @@ def run_classification_pipeline(
     results_df = pd.DataFrame(processed_data)
     results_df.to_csv(output_csv_path, index=False)
 
-    total_actual_cost = sum(row["cost"] for row in processed_data if "cost" in row)
+    total_actual_cost = sum(float(row["cost"]) for row in processed_data if "cost" in row)
     logger.info(f"Done! Saved results to {output_csv_path}")
     logger.info(f"Total Actual Classification Cost: ${total_actual_cost:.4f}")
 
