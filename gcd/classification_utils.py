@@ -321,3 +321,6 @@ def run_classification_pipeline(
     total_actual_cost = sum(row["cost"] for row in processed_data if "cost" in row)
     logger.info(f"Done! Saved results to {output_csv_path}")
     logger.info(f"Total Actual Classification Cost: ${total_actual_cost:.4f}")
+
+    # Classification Results
+    logger.info(f"Classification Results: {results_df['area'].value_counts()}")
