@@ -236,7 +236,7 @@ async def classify_all_readmes(agent_instance, texts, urls):
             "text": text,
             "area": classification_output.area.value,
             "reasoning": classification_output.reasoning,
-            "cost": total_cost,
+            "cost": f"{total_cost:.4f}",
         }
 
     tasks = [
