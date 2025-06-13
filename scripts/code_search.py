@@ -323,19 +323,6 @@ def search_code(
     help="Enable debug output",
 )
 @click.option(
-    "--output-format",
-    "-f",
-    type=click.Choice(["pretty", "json", "csv"]),
-    default="pretty",
-    help="Output format (default: pretty)",
-)
-@click.option(
-    "--output-file",
-    "-o",
-    type=click.Path(),
-    help="Save results to file (format determined by extension)",
-)
-@click.option(
     "--embedding-model",
     default="all-MiniLM-L6-v2",
     help="Embedding model to use (default: all-MiniLM-L6-v2)",
