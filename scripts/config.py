@@ -30,5 +30,11 @@ if not os.path.exists("./data/repositories_with_embeddings.csv"):
 else:
     logger.info("Repositories with embeddings already downloaded.")
 
+if not os.path.exists("./data/results_cache.csv"):
+    file_id = "1hw_ceiWc1rGnMO0tV4spk-5ikHUgqJZ5"
+    gdown.download(f"https://drive.google.com/uc?id={file_id}", "./data/results_cache.csv", quiet=False)
+else:
+    logger.info("Results cache already downloaded.")
+
 
 
