@@ -251,6 +251,7 @@ def run_classification_pipeline(
     output_csv_path: str,
     text_column: str = "readme_text",
     url_column: str = "repo_url",
+    source_class: str = "source",
 ):
     """
     Run the README classification pipeline.
@@ -316,6 +317,8 @@ def run_classification_pipeline(
 
     # Save results
     results_df = pd.DataFrame(processed_data)
+    results_df.drop(['cost'], axis=1, inplace=True)
+    results_df['source'] = source_class
     results_df.to_csv(output_csv_path, index=False)
 
     total_actual_cost = sum(float(row["cost"]) for row in processed_data if "cost" in row)

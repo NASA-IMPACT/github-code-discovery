@@ -19,7 +19,8 @@ def keyword_pipeline(keyword: str, days_back: int, output_csv_path: str, token: 
     run_classification_pipeline(input_csv_path=temp_path, 
                                 output_csv_path=output_csv_path,
                                 text_column="readme",
-                                url_column="url")
+                                url_column="url",
+                                source_class="Keyword: " + keyword)
     os.remove(temp_path)
     logger.info(f"Saved {len(df)} unique repositories from the last {days_back} days.")
 

@@ -15,7 +15,8 @@ def doi_pipeline(token: str, csv_path: str, start_row: int = 0, end_row: int = 1
                                   json_output_path="./doi_results/github_repo_readme.json", 
                                   csv_output_path="./doi_results/github_repo_readme.csv")
     run_classification_pipeline(input_csv_path="./doi_results/github_repo_readme.csv", 
-                                output_csv_path="./doi_results/github_repo_readme_classified.csv")
+                                output_csv_path="./doi_results/github_repo_readme_classified.csv",
+                                source_class="DOI")
     
     # Uncomment to save all the results
     os.remove("./doi_results/extracted_github_links.csv")
