@@ -4,6 +4,7 @@ import time
 import pandas as pd
 import requests
 from loguru import logger
+from urllib.parse import urlparse
 from datetime import datetime, timedelta
 
 def get_github_readme(repo_url: str, token: str) -> dict[str, str]:
@@ -404,3 +405,117 @@ def build_enhanced_search_query(keyword, created_filter, per_page, cursor=None):
     '''
     
     return query.strip()
+
+### GraphQL Utilities for Org pipeline
+
+def extract_owner_and_repo(github_url: str):
+    """Return (owner, repo) or (owner, None) if it's an org/user link."""
+    parts = urlparse(github_url).path.strip("/").split("/")
+    return (parts[0], parts[1]) if len(parts) >= 2 else (parts[0], None)
+
+def is_repo_url(github_url: str, token: str) -> bool:
+    """Use GitHub REST API to check if URL corresponds to a valid repo."""
+    owner, repo = extract_owner_and_repo(github_url)
+    if not repo:
+        return False  # clearly not a repo
+
+    url = f"https://api.github.com/repos/{owner}/{repo}"
+    headers = {"Authorization": f"token {token}"}
+    response = requests.get(url, headers=headers)
+    return response.status_code == 200
+
+def get_org_repos(org_name: str, token: str):
+    """Fetch all repos for an org/user using GraphQL."""
+    headers = {
+        "Authorization": f"bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    query = """
+    query($org: String!, $cursor: String) {
+      organization(login: $org) {
+        repositories(privacy: PUBLIC, first: 100, after: $cursor) {
+          nodes {
+            name
+            url
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+    """
+
+    repos = []
+    cursor = None
+
+    while True:
+        variables = {"org": org_name, "cursor": cursor}
+        response = requests.post(
+            "https://api.github.com/graphql",
+            headers=headers,
+            json={"query": query, "variables": variables}
+        )
+        data = response.json()
+
+        if "errors" in data:
+            logger.error(f"Error querying {org_name}: {data['errors']}")
+            break
+
+        repo_nodes = data["data"]["organization"]["repositories"]["nodes"]
+        repos.extend([node["url"] for node in repo_nodes])
+
+        page_info = data["data"]["organization"]["repositories"]["pageInfo"]
+        if not page_info["hasNextPage"]:
+            break
+        cursor = page_info["endCursor"]
+
+    return repos
+
+def get_repos_from_link(github_url: str, token: str):
+    owner, repo = extract_owner_and_repo(github_url)
+
+    if is_repo_url(github_url, token):
+        logger.info(f"Found base repo: {github_url}")
+        return [github_url]
+    else:
+        logger.info(f"Found org/user: {owner}")
+        return get_org_repos(owner, token)
+    
+def fetch_and_process_org_links(input_csv_path: str, token: str):
+    df = pd.read_csv(input_csv_path)
+    urls = df["URL"].dropna().unique()
+
+    all_base_repos = []
+    for url in urls:
+        base_links = get_repos_from_link(url, token)
+        all_base_repos.extend(base_links)
+
+    output_data = {}
+    sleep_time = 1.0
+
+    for link in all_base_repos:
+        logger.info(f"Processing {link}")
+        try:
+            info = get_github_readme(link, token=token)
+            output_data[link] = info
+            time.sleep(sleep_time)  # avoid rate limits
+        except Exception as e:
+            logger.error(f"Failed for {link}: Empty or Archived Repository/No README found/Rate Limit Exceeded")
+
+    # Save CSV
+    csv_rows = [
+        {
+            "repo_url": k,
+            "readme_text": v["readme_text"].replace("\n", " ")
+            if v.get("readme_text")
+            else "",
+        }
+        for k, v in output_data.items()
+    ]
+
+    logger.info(f"Found {len(csv_rows)} base-level repo links")
+    pd.DataFrame(csv_rows).to_csv("./org_list_temp.csv", index=False)
+    logger.info(f"Saved base-level repo links")
