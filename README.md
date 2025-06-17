@@ -119,6 +119,25 @@ A pipeline to extract and classify GitHub repository links from the Astrophysics
 python scripts/gh_search.py ascl
 ```
 
+## Pipeline: Org Search
+
+A pipeline to discover and classify GitHub repositories from a list of GitHub organizations.
+
+### Features
+- Parse each input URL to determine whether it is a direct repository link or an org page.
+- For org pages, use the GitHub GraphQL API to enumerate all public repositories under the organization.
+- Fetch the README file for each repository.
+- Save the list of valid base-level repositories and their READMEs to CSV 
+
+### Usage
+
+```bash
+python scripts/gh_search.py org <input_csv_path> 
+
+Example:
+python scripts/gh_search.py org "./data/SMD_Sources.csv"
+```
+
 ## Pipeline: GitHub Code Search
 
 **Validate setup**
