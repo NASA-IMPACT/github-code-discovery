@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from enum import Enum
-
+import os
 import pandas as pd
 from dotenv import load_dotenv
 from loguru import logger
@@ -248,7 +248,6 @@ async def classify_all_readmes(agent_instance, texts, urls):
 
 def run_classification_pipeline(
     input_csv_path: str,
-    output_csv_path: str,
     text_column: str = "readme_text",
     url_column: str = "repo_url",
     source_class: str = "source",
@@ -319,10 +318,16 @@ def run_classification_pipeline(
     results_df = pd.DataFrame(processed_data)
     results_df.drop(['cost'], axis=1, inplace=True)
     results_df['source'] = source_class
-    results_df.to_csv(output_csv_path, index=False)
+    
+    # Append to cache CSV
+    cache_path = './data/results_cache.csv'
+    if os.path.exists(cache_path):
+        results_df.to_csv(cache_path, mode='a', index=False, header=False)
+    else:
+        results_df.to_csv(cache_path, index=False)
 
     total_actual_cost = sum(float(row["cost"]) for row in processed_data if "cost" in row)
-    logger.info(f"Done! Saved results to {output_csv_path}")
+    logger.info(f"Done! Saved results to Cache at ./data/results_cache.csv")
     logger.info(f"Total Actual Classification Cost: ${total_actual_cost:.4f}")
 
     # Classification Results

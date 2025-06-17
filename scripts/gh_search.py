@@ -31,10 +31,9 @@ def ascl():
 @cli.command()
 @click.argument("keyword", type=str)
 @click.argument("days_back", type=int)
-@click.argument("output_csv_path", type=click.Path())
-def keywords(keyword, days_back, output_csv_path):
+def keywords(keyword, days_back):
     """Run keyword-based GitHub search pipeline"""
-    run_keyword_pipeline(keyword, days_back, output_csv_path, GITHUB_ACCESS_TOKEN)
+    run_keyword_pipeline(keyword, days_back, GITHUB_ACCESS_TOKEN)
 
 if __name__ == "__main__":
     cli()
