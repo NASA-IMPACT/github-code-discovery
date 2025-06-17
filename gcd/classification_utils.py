@@ -265,17 +265,33 @@ def run_classification_pipeline(
         positive_df = pd.read_csv(input_csv_path)
         if positive_df.empty:
             logger.error(f"Input CSV at '{input_csv_path}' is empty. Aborting.")
+            sys.exit(1)
     except Exception as e:
         logger.error(f"Failed to load input CSV: {e}, No GitHub links to process")
         sys.exit(1)
 
     logger.info(f"Loaded {len(positive_df)} rows from {input_csv_path}")
+
+    # Remove entries already in the cache
+    cache_path = './data/results_cache.csv'
+    if os.path.exists(cache_path):
+        cache_df = pd.read_csv(cache_path)
+        if 'URL' in cache_df.columns:
+            before_count = len(positive_df)
+            positive_df = positive_df[~positive_df[url_column].isin(cache_df['URL'])]
+            logger.info(f"Removed {before_count - len(positive_df)} duplicate entries already in cache.")
+
+    # Continue with processing
     positive_df[text_column] = positive_df[text_column].fillna("")
     positive_texts = [flatten(text) for text in positive_df[text_column].values]
     positive_repo_urls = list(positive_df[url_column].values)
 
     sample_count = len(positive_df)
-    logger.info(f"Total Samples: {sample_count}")
+    logger.info(f"Total Samples to be classified: {sample_count}")
+
+    if sample_count == 0:
+        logger.info("No new samples to classify. Exiting.")
+        sys.exit(0)
 
     model_options = {
         "1": "gpt-4o-mini",
@@ -322,20 +338,9 @@ def run_classification_pipeline(
     # Append to cache CSV
     cache_path = './data/results_cache.csv'
     # Check if cache exists
+    cache_path = './data/results_cache.csv'
     if os.path.exists(cache_path):
-        cache_df = pd.read_csv(cache_path)
-        
-        # Concatenate and drop duplicates based on a unique column (e.g. 'URL')
-        combined_df = pd.concat([cache_df, results_df], ignore_index=True)
-        combined_df.drop_duplicates(subset='URL', inplace=True)
-        
-        # Only save new entries (diff between combined and old cache)
-        new_entries = combined_df[~combined_df['URL'].isin(cache_df['URL'])]
-
-        logger.info(f"Found {len(new_entries)} new entries")
-        
-        if not new_entries.empty:
-            new_entries.to_csv(cache_path, mode='a', index=False, header=False)
+        results_df.to_csv(cache_path, mode='a', index=False, header=False)
     else:
         results_df.to_csv(cache_path, index=False)
 
