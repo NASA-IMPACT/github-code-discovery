@@ -97,10 +97,10 @@ A pipeline to discover and classify GitHub repositories using keyword-based sear
 ### Usage
 
 ```bash
-python scripts/gh_search.py keywords "<search_keyword>" <days_back> <output_csv_path>
+python scripts/gh_search.py keywords "<search_keyword>" <days_back> 
 
 Example:
-python scripts/gh_search.py keywords "Hubble" 90 ./results/kw_output.csv
+python scripts/gh_search.py keywords "Hubble" 90 
 ```
 
 ## Pipeline: ASCL Search
