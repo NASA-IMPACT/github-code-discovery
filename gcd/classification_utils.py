@@ -321,8 +321,21 @@ def run_classification_pipeline(
     
     # Append to cache CSV
     cache_path = './data/results_cache.csv'
+    # Check if cache exists
     if os.path.exists(cache_path):
-        results_df.to_csv(cache_path, mode='a', index=False, header=False)
+        cache_df = pd.read_csv(cache_path)
+        
+        # Concatenate and drop duplicates based on a unique column (e.g. 'URL')
+        combined_df = pd.concat([cache_df, results_df], ignore_index=True)
+        combined_df.drop_duplicates(subset='URL', inplace=True)
+        
+        # Only save new entries (diff between combined and old cache)
+        new_entries = combined_df[~combined_df['URL'].isin(cache_df['URL'])]
+
+        logger.info(f"Found {len(new_entries)} new entries")
+        
+        if not new_entries.empty:
+            new_entries.to_csv(cache_path, mode='a', index=False, header=False)
     else:
         results_df.to_csv(cache_path, index=False)
 
