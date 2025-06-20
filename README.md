@@ -75,6 +75,8 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 - Fetches README content from GitHub repos via GraphQL
 - Runs a downstream Relevancy classification pipeline on the retrieved repositories
 
+> **Note:** The DOI links must be in the **first column** of the CSV file.
+
 ### Usage
 
 ```bash
