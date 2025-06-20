@@ -18,8 +18,8 @@ def cli():
 
 @cli.command()
 @click.argument("csv_path", type=click.Path(exists=True))
-@click.argument("start_row", type=int)
-@click.argument("end_row", type=int)
+@click.argument("start_row", default=0, type=int)
+@click.argument("end_row", default=-1, type=int)
 def dois(csv_path, start_row, end_row):
     """Run pipeline with a list of DOIs"""
     run_doi_pipeline(GITHUB_ACCESS_TOKEN,csv_path, start_row, end_row)
