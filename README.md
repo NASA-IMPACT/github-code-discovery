@@ -6,7 +6,7 @@ This project provides a modular and scalable framework to automate the discovery
 
 The system extracts GitHub repository links, retrieves README content and metadata, and classifies repositories for NASA relevance using large language models. It also supports semantic code search that allows users to find relevant code blocks based on natural language queries.
 
-The final output is a structured CSV file that can be used in downstream workflows such as NASA's Software Discovery Engine (SDE).
+The final output is a structured CSV file that can be used in downstream workflows such as NASA's Science Discovery Engine (SDE).
 
 ## Setup Instructions
 
