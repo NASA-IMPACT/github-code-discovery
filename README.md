@@ -75,7 +75,7 @@ A pipeline to extract GitHub repository links from scientific papers using DOI l
 - Fetches README content from GitHub repos via GraphQL
 - Runs a downstream Relevancy classification pipeline on the retrieved repositories
 
-> **Note:** The DOI links must be in the **first column** of the CSV file.
+> **Note:** The CSV file must contain a column named `'DOI'`, from which the links will be extracted.
 
 ### Usage
 
@@ -129,7 +129,9 @@ A pipeline to discover and classify GitHub repositories from a list of GitHub or
 - Parse each input URL to determine whether it is a direct repository link or an org page.
 - For org pages, use the GitHub GraphQL API to enumerate all public repositories under the organization.
 - Fetch the README file for each repository.
-- Save the list of valid base-level repositories and their READMEs to CSV 
+- Save the list of valid base-level repositories and their READMEs to CSV
+
+> **Note:** The CSV file must contain a column named `'URL'`, from which the links will be extracted.
 
 ### Usage
 
