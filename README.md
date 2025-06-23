@@ -1,5 +1,14 @@
-# github-code-discovery
-Tools for discoverying github code
+# GitHub Code Discovery for NASA-SMD
+
+Tools for Discovering, Classifying, and Searching NASA-Relevant Open-Source Repositories on GitHub
+
+This project provides a modular and scalable framework to automate the discovery of high-value, NASA-related open-source software on GitHub.  
+It includes multiple discovery pipelines based on DOI links, keyword search, curated organization lists, and metadata from the Astrophysics Source Code Library (ASCL).
+
+The system extracts GitHub repository links, retrieves README content and metadata, and classifies repositories for NASA relevance using large language models.  
+It also supports semantic code search that allows users to find relevant code blocks based on natural language queries.
+
+The final output is a structured CSV file that can be used in downstream workflows such as NASA's Software Discovery Engine (SDE).
 
 ## Setup Instructions
 
