@@ -56,9 +56,8 @@ def process_dois_parallel(
 
     """Process DOIs in parallel and save them in batches."""
     with open(input_csv, newline="") as infile:
-        reader = csv.reader(infile)
-        next(reader)  # skip header
-        doi_urls = [row[0].strip() for row in reader][start_row:end_row]
+        reader = csv.DictReader(infile)
+        doi_urls = [row["DOI"].strip() for i, row in enumerate(reader) if start_row <= i < end_row]
 
     logger.info("\n--- Processing DOIs ---")
     for batch_num, i in enumerate(
