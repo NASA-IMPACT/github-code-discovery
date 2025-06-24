@@ -1,6 +1,6 @@
 [project]
 name = "github-code-discovery"
-version = "0.0.1"
+version = "0.0.1-alpha"
 description = "Pipeline for discoverying code in GitHub for NASA science"
 readme = "README.md"
 requires-python = ">=3.12"
