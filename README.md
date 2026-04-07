@@ -177,3 +177,24 @@ python scripts/code_search.py search-code "atmospheric pressure simulation"  --o
 The search happens at 2 levels:
 - First, search for a list of top N repositories (repo search)
 - Then search for code in each of those repo (code search per repo)
+
+## Pipeline: Context Enrichment
+
+A pipeline to enrich GitHub repository READMEs with additional context by crawling high-signal external links found in the README content.
+
+### Features
+- Extracts and filters high-signal links from READMEs (arxiv, zenodo, readthedocs, huggingface, etc.)
+- Crawls extracted links in parallel using Docling for content extraction
+- Uses an LLM-based relevancy agent to assess whether crawled content is relevant to the original README
+- Only enriches READMEs with content that passes the relevancy check
+
+> **Note:** The input CSV must contain columns `name`, `URL`, and `text` (README content).
+
+### Usage
+
+```bash
+python scripts/context_enrichment/enrich_readmes.py --input <input_csv> --output <output_csv> --limit <num_repos> --debug
+
+Example:
+python scripts/context_enrichment/enrich_readmes.py --input data/discovered_repos.csv --output data/enriched_repos.csv --limit 5 --debug
+```
