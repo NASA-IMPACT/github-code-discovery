@@ -6,7 +6,7 @@ assesses their relevancy, and enriches repository data with high-quality
 external content.
 
 Usage:
-    python scripts/enrich_readmes.py --limit 10 --debug
+    python scripts/context_enrichment/enrich_readmes.py --limit 10 --debug
 """
 
 import asyncio
@@ -18,15 +18,46 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 import pandas as pd
+from dotenv import load_dotenv
 from loguru import logger
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
 from tqdm.asyncio import tqdm
-from akd.agents.readme import (
-    ReadmeContentRelevanceAgent,
-    ReadmeContentRelevanceAgentInputSchema,
-)
-from akd.tools.scrapers.omni import DoclingScraper, DoclingScraperConfig
-from akd.tools.misc import HttpUrlAdapter
-from akd.utils import is_server_available
+
+load_dotenv()
+
+from docling.document_converter import DocumentConverter
+from docling.datamodel.base_models import InputFormat
+
+
+# ============================================================================
+# Pydantic-AI Relevancy Agent
+# ============================================================================
+
+class ContentRelevance(BaseModel):
+    """Output schema for the relevancy assessment."""
+    is_relevant: bool = Field(
+        ..., description="Whether the content should be included in the README"
+    )
+    reasoning: str = Field(
+        ..., description="Detailed explanation for the relevance decision"
+    )
+
+
+def _create_relevance_agent() -> Agent:
+    """Create the relevance agent. Deferred to avoid requiring API key at import time."""
+    return Agent(
+        OpenAIChatModel("gpt-4o-mini"),
+        output_type=ContentRelevance,
+        retries=3,
+        instructions=(
+            "You evaluate whether scraped web content is relevant and valuable enough "
+            "to be included in a GitHub repository README for enhanced search and informativeness. "
+            "The content should add meaningful context about the project's purpose, methodology, "
+            "or related research. Reject content that is generic, unrelated, or low-quality."
+        ),
+    )
 
 
 # ============================================================================
@@ -76,13 +107,6 @@ class EnrichmentConfig:
     max_content_chars_assessment: int = 5000  # Max chars for relevancy assessment
     max_content_chars_enrichment: int = 5000  # Max chars per link in enriched output
 
-    # Scraper settings
-    scraper_mode: str = "fast"  # "fast" or "accurate"
-    use_ocr: bool = False
-
-    # Link validation
-    link_validation_timeout: int = 5  # Timeout for link validation in seconds
-
     # Debug
     debug: bool = False
 
@@ -115,12 +139,12 @@ class LinkExtractor:
         markdown_links = re.findall(r'\[([^\]]+)\]\(([^\)]+)\)', readme_text)
         urls.update(url for _, url in markdown_links if url.startswith('http'))
 
-        # Extract plain URLs
+        # Extract plain URLs and strip trailing punctuation
         plain_urls = re.findall(
             r'https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
             readme_text
         )
-        urls.update(plain_urls)
+        urls.update(url.rstrip('.,;:!?)\'\"') for url in plain_urls)
 
         # Extract HTML links <a href="url">
         html_links = re.findall(r'<a\s+href=["\']([^"\']+)["\']', readme_text)
@@ -178,39 +202,11 @@ class LinkExtractor:
                 deduped.append(url)
         return deduped
 
-    async def validate_links(self, urls: List[str]) -> List[str]:
-        """Validate that URLs are reachable using is_server_available in parallel."""
-        async def check_url(url: str) -> Optional[str]:
-            """Check if a single URL is available using asyncio executor."""
-            loop = asyncio.get_event_loop()
-            try:
-                # Run is_server_available in thread pool to avoid blocking
-                is_available = await loop.run_in_executor(None, is_server_available, url)
-                if is_available:
-                    return url
-                elif self.config.debug:
-                    logger.debug(f"URL not reachable: {url}")
-                return None
-            except Exception as e:
-                if self.config.debug:
-                    logger.debug(f"Error validating {url}: {e}")
-                return None
-
-        # Validate all URLs in parallel
-        tasks = [check_url(url) for url in urls]
-        results = await asyncio.gather(*tasks)
-        valid_urls = [url for url in results if url is not None]
-
-        if self.config.debug:
-            logger.debug(f"Validated {len(valid_urls)}/{len(urls)} URLs as reachable")
-
-        return valid_urls
-
-    async def extract_and_filter(self, readme_text: str, max_links: int = 20) -> List[str]:
+    def extract_and_filter(self, readme_text: str, max_links: int = 20) -> List[str]:
         """
-        Extract, filter, deduplicate, and validate links from README.
+        Extract, filter, and deduplicate links from README.
 
-        Returns up to max_links high-signal, validated URLs.
+        Returns up to max_links high-signal URLs.
         """
         # Extract all links
         all_links = self.extract_links(readme_text)
@@ -227,14 +223,11 @@ class LinkExtractor:
         # Deduplicate
         deduped = self.deduplicate(filtered)
 
-        # Validate links (check if reachable) - async and parallel
-        validated = await self.validate_links(deduped)
-
         # Limit to max_links
-        result = validated[:max_links]
+        result = deduped[:max_links]
 
         if self.config.debug:
-            logger.debug(f"Final: {len(result)} links after validation and limiting")
+            logger.debug(f"Final: {len(result)} links after filtering and limiting")
 
         return result
 
@@ -244,45 +237,41 @@ class LinkExtractor:
 # ============================================================================
 
 class ParallelCrawler:
-    """Crawls URLs in parallel using DoclingScraper."""
+    """Crawls URLs in parallel using Docling."""
 
     def __init__(self, config: EnrichmentConfig):
         self.config = config
 
-        # Initialize DoclingScraper
-        scraper_config = DoclingScraperConfig(
-            pdf_mode=config.scraper_mode,
-            use_ocr=config.use_ocr,
-            export_type="markdown",
-            debug=config.debug,
+        # Initialize Docling DocumentConverter
+        self.converter = DocumentConverter(
+            allowed_formats=[InputFormat.HTML, InputFormat.PDF],
         )
-        self.scraper = DoclingScraper(config=scraper_config)
 
         # Semaphore for rate limiting
         self.semaphore = asyncio.Semaphore(config.max_concurrent_crawls)
+
+    def _crawl_sync(self, url: str) -> Dict[str, Any]:
+        """Synchronous crawl using Docling converter."""
+        result = self.converter.convert(url)
+        content = result.document.export_to_markdown()
+        return {
+            "url": url,
+            "content": content,
+            "metadata": {"title": getattr(result.document, 'name', '')},
+            "success": True,
+            "error": None,
+        }
 
     async def crawl_single(self, url: str) -> Optional[Dict[str, Any]]:
         """Crawl a single URL and return content + metadata."""
         async with self.semaphore:
             try:
-                # Create scraper input
-                from akd.tools.scrapers.omni import OmniScraperInputSchema
-
-                scraper_input = OmniScraperInputSchema(url=url)
-
-                # Crawl with timeout
+                loop = asyncio.get_running_loop()
                 result = await asyncio.wait_for(
-                    self.scraper.arun(scraper_input),
+                    loop.run_in_executor(None, self._crawl_sync, url),
                     timeout=self.config.crawl_timeout
                 )
-
-                return {
-                    "url": url,
-                    "content": result.content,
-                    "metadata": result.metadata.model_dump() if result.metadata else {},
-                    "success": True,
-                    "error": None,
-                }
+                return result
 
             except asyncio.TimeoutError:
                 logger.warning(f"Timeout crawling {url}")
@@ -337,9 +326,7 @@ class ReadmeEnrichmentPipeline:
         # Initialize components
         self.link_extractor = LinkExtractor(config)
         self.crawler = ParallelCrawler(config)
-
-        # Initialize relevancy agent
-        self.relevancy_agent = ReadmeContentRelevanceAgent()
+        self.relevancy_agent = _create_relevance_agent()
 
     def load_repos(self, start: int = 0, limit: Optional[int] = None) -> pd.DataFrame:
         """Load repository data from CSV with start index and limit."""
@@ -378,7 +365,7 @@ class ReadmeEnrichmentPipeline:
         logger.info(f"{'='*60}")
 
         # Step 1: Extract links
-        links = await self.link_extractor.extract_and_filter(
+        links = self.link_extractor.extract_and_filter(
             readme_text,
             max_links=self.config.max_links_per_repo
         )
@@ -431,43 +418,42 @@ class ReadmeEnrichmentPipeline:
                 "enrichment_metadata": json.dumps({"status": "crawl_failed"}),
             }
 
-        # Step 3: Assess relevancy using ReadmeContentRelevanceAgent
+        # Step 3: Assess relevancy using pydantic-ai agent (parallel)
         logger.info(f"Assessing relevancy for {len(successful_crawls)} crawled pages...")
 
-        relevant_crawls = []
-        for crawl in successful_crawls:
+        async def assess_single(crawl: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             try:
-                # Assess each crawled content against README
-                assessment_input = ReadmeContentRelevanceAgentInputSchema(
-                    readme=readme_text,
-                    content=crawl["content"][:self.config.max_content_chars_assessment],
+                content_snippet = crawl["content"][:self.config.max_content_chars_assessment]
+                prompt = (
+                    f"README:\n{readme_text}\n\n"
+                    f"Crawled Content:\n{content_snippet}"
                 )
 
-                assessment_result = await self.relevancy_agent.arun(assessment_input)
+                result = await self.relevancy_agent.run(prompt)
 
-                if assessment_result.is_relevant:
-                    # Add to relevant list with metadata
+                if self.config.debug:
+                    logger.debug(f"{crawl['url']}: {result.output.reasoning}")
+
+                if result.output.is_relevant:
                     crawl["is_relevant"] = True
-                    crawl["relevance_reasoning"] = assessment_result.reasoning
-                    relevant_crawls.append(crawl)
-
-                    if self.config.debug:
-                        logger.debug(f"{crawl['url']}: {assessment_result.reasoning}")
-                elif self.config.debug:
-                    logger.debug(f"{crawl['url']}: {assessment_result.reasoning}")
+                    crawl["relevance_reasoning"] = result.output.reasoning
+                    return crawl
+                return None
 
             except Exception as e:
                 logger.warning(f"Error assessing {crawl['url']}: {e}")
-                continue
+                return None
+
+        assessments = await asyncio.gather(*[assess_single(c) for c in successful_crawls])
+        relevant_crawls = [c for c in assessments if c is not None]
 
         logger.info(f"{len(relevant_crawls)} links passed relevancy check")
 
-        # Step 4: Enrich repository text (simple concatenation)
+        # Step 4: Enrich repository text
         enriched_text = readme_text
 
-        # Simply concatenate relevant content without separators
         for crawl in relevant_crawls:
-            enriched_text += crawl["content"][:self.config.max_content_chars_enrichment]
+            enriched_text += f"\n\n---\n\n{crawl['content'][:self.config.max_content_chars_enrichment]}"
 
         # Step 5: Create enrichment metadata and crawled URLs list
         crawled_urls_list = [c["url"] for c in relevant_crawls]
