@@ -6,11 +6,11 @@ Enriches GitHub repository READMEs by crawling external links and appending rele
 
 1. Extracts high-signal links from README text (arxiv, zenodo, readthedocs, huggingface, etc.)
 2. Filters out low-value domains (social media, CI/CD badges)
-3. Crawls validated links in parallel using Docling
+3. Crawls links in parallel using Docling
 4. Assesses relevancy of crawled content against the original README using an LLM agent
 5. Appends only relevant content to the README text
 
 ## Requirements
 
 - `OPENAI_API_KEY` in `.env` for LLM-based relevancy assessment
-- Dependencies: `akd` framework, `docling`, `pandas`, `loguru`
+- Dependencies: `pydantic-ai`, `docling`, `pandas`, `loguru`
